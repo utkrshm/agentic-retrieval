@@ -16,13 +16,13 @@ import torch
 from coderet.retrieval.dense import Retriever
 
 
-def hardware() -> dict[str, str | int]:
+def hardware(query_device: str = "cpu") -> dict[str, str | int]:
     return {
         "cpu": platform.processor() or platform.machine(),
         "logical_cores": os.cpu_count() or 0,
         "torch_threads": torch.get_num_threads(),
         "torch": torch.__version__,
-        "device": "cuda" if torch.cuda.is_available() else "cpu",
+        "query_device": query_device,
     }
 
 
