@@ -8,20 +8,21 @@ from pathlib import Path
 
 import mteb
 
+from coderet.config import MODELS, get_model
 from coderet.models.encoders import SentenceTransformerEmbedder
 from coderet.mteb_adapters import PrePostPipelineEncoder
 
-DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+DEFAULT_MODEL = "jina-code-0.5b"
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", default=DEFAULT_MODEL, help="sentence-transformers model id")
+    parser.add_argument("--model", default=DEFAULT_MODEL, choices=sorted(MODELS), help="registry key from coderet.config")
     parser.add_argument("--out", type=Path, default=Path("appsretrieval_results.json"))
     parser.add_argument("--batch-size", type=int, default=64)
     args = parser.parse_args()
 
-    model = PrePostPipelineEncoder(SentenceTransformerEmbedder(args.model))
+    model = PrePostPipelineEncoder(SentenceTransformerEmbedder(get_model(args.model)))
     task = mteb.get_task("AppsRetrieval")  # Make sure you choose this task
     result = mteb.evaluate(model, [task], encode_kwargs={"batch_size": args.batch_size})
 
