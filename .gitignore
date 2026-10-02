@@ -8,3 +8,11 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Project
+docs/
+.cache/
+results/raw/
+*.npy
+.env
+
