@@ -15,7 +15,7 @@ from typing import Any, Literal, Protocol
 
 import numpy as np
 from mteb.models.abs_encoder import AbsEncoder
-from mteb.models.model_meta import ModelMeta
+from mteb.models.model_meta import ModelMeta, ScoringFunction
 from mteb.types import PromptType
 
 Role = Literal["query", "document"]
@@ -48,12 +48,19 @@ class PrePostPipelineEncoder(AbsEncoder):
         embedder: Embedder,
         preprocess: TextHook = identity_texts,
         postprocess: VectorHook = l2_normalize,
+        revision: str | None = None,
     ) -> None:
         self.embedder = embedder
         self.preprocess = preprocess
         self.postprocess = postprocess
         self.mteb_model_meta = ModelMeta.create_empty(
-            {"name": f"coderet/{embedder.name.replace('/', '__')}", "similarity_fn_name": "cosine"}
+            {
+                "name": f"coderet/{embedder.name.replace('/', '__')}",
+                # MTEB caches results per (name, revision): pass the run fingerprint
+                # so a changed config never reuses stale scores.
+                "revision": revision,
+                "similarity_fn_name": ScoringFunction.COSINE,
+            }
         )
 
     def encode(

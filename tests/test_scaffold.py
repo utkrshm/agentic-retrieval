@@ -28,3 +28,10 @@ def test_pipeline_routes_roles_and_normalises():
     np.testing.assert_allclose(np.linalg.norm(q, axis=1), 1.0, rtol=1e-6)
     assert d.shape == (2, 2)
     assert enc.mteb_model_meta.name == "coderet/fake__embedder"
+
+
+def test_similarity_is_cosine():
+    enc = PrePostPipelineEncoder(FakeEmbedder())
+    a = np.array([[3.0, 4.0]], dtype=np.float32)
+    b = np.array([[6.0, 8.0], [0.0, 1.0]], dtype=np.float32)
+    np.testing.assert_allclose(np.asarray(enc.similarity(a, b)), [[1.0, 0.8]], rtol=1e-6)
