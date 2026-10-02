@@ -28,10 +28,28 @@ uv sync
 uv run pytest
 ```
 
-## Produce the submission JSON
+## Quickstart demo (CPU)
+
+Ranks a small built-in snippet library (it includes the guideline's three example snippets) and prints per-stage timings:
 
 ```bash
-uv run python scripts/run_mteb.py
+uv run python scripts/demo.py "How is the input preprocessed before going to the main function?"
 ```
 
-Writes `appsretrieval_results.json` (upload it to a GitHub release).
+Run it without arguments for four sample queries. Pass `--model qwen3-0.6b` to switch encoders.
+
+## Results
+
+| Model | AppsRetrieval test NDCG@10 | MRR@10 | Recall@100 |
+|---|---|---|---|
+| jina-code-embeddings-0.5b (current submission) | 83.87 | 80.83 | 98.51 |
+
+Dev-split bakeoff, CPU latency and caveats are in [experiments/EXPERIMENTS.md](experiments/EXPERIMENTS.md).
+
+## Reproduce the submission JSON
+
+```bash
+uv run python scripts/run_mteb.py --model jina-code-0.5b --out results/appsretrieval_results.json
+```
+
+Upload the JSON to a GitHub release. To rerun the dev bakeoff, use `uv run python scripts/bakeoff.py`. `embeddinggemma-300m` is gated: accept its license on Hugging Face and run `hf auth login` first.
