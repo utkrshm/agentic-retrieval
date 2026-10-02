@@ -75,6 +75,9 @@ class PrePostPipelineEncoder(AbsEncoder):
     ) -> np.ndarray:
         role: Role = "query" if prompt_type == PromptType.query else "document"
         texts = [text for batch in inputs for text in batch["text"]]
-        texts = self.preprocess(texts, role)
-        vectors = self.embedder.embed(texts, role, batch_size=kwargs.get("batch_size", 64))
+        return self.encode_texts(texts, role, batch_size=kwargs.get("batch_size", 64))
+
+    def encode_texts(self, texts: list[str], role: Role, batch_size: int = 64) -> np.ndarray:
+        """The pipeline itself, shared by the MTEB path and the standalone retriever."""
+        vectors = self.embedder.embed(self.preprocess(texts, role), role, batch_size=batch_size)
         return self.postprocess(np.asarray(vectors, dtype=np.float32), role)
