@@ -236,6 +236,21 @@ treat gaps under about 0.05 as noise.
   both models in memory and both indexes (about 3 GB of weights). Long queries cost more (earlier fp32 timing:
   Gemma 338 ms, jina 880 ms at about 400 tokens). Startup (model loading) was 7 to 15 s and is not included.
 
+### E12c. Learned score fusion inside the two-stage pipeline (pre-registered before running)
+
+- **Why:** E12b re-scores Gemma's top-N by jina cosine alone, which discards the BM25 lane's ordering inside the
+  top-N (the lane is what fixed exact-literal queries). Fusing the signals should keep it.
+- **Candidates:** Gemma's top-N from the full lane pipeline (test scope plus gated lexical lane), N in {10, 20, 50}.
+  Exact scores are computed for every candidate: Gemma cosine, jina cosine (stored vectors), BM25.
+- **Score:** per-query min-max over the candidates, `s = (1 - g) * (beta * jina + (1 - beta) * gemma) + g * bm25`,
+  where g = gamma when the BM25 gate fires for the query and 0 otherwise.
+- **Grid (fixed now):** beta in {0.5, 0.7, 1.0} and gamma in {0, 0.25, 0.5}: 9 settings, ties go to the first.
+- **Protocol:** choose the setting by MRR@10 on one repo, evaluate once on the other, then the reverse, for each N.
+- **Accept a setting for N** only if on each held-out repo MRR@10 is at least jina alone's (lane plus tests) and
+  Recall@10 is not lower than jina alone's, and the chosen settings of the two directions differ by at most one
+  grid step in each parameter. Otherwise reject. Report per-query better/worse counts against jina alone.
+- **Expected:** at most a few queries change (Opus: -0.01 to +0.03 MRR, a guess).
+
 ### E13. Incidents worth remembering
 
 - **Silent CPU fallback during indexing:** a first re-index hit a CUDA out-of-memory error on its first batch;
