@@ -479,6 +479,8 @@ def _git_tracked(root: Path) -> list[Path] | None:
 def _wanted(p: Path, root: Path, exts: set[str], skip: set[str]) -> bool:
     if p.suffix.lower() not in exts or not p.is_file() or p.is_symlink():
         return False
+    if p.name.endswith((".d.ts", ".d.mts", ".d.cts")):  # type declarations: no implementation to find
+        return False
     if any(part in skip for part in p.relative_to(root).parts[:-1]):
         return False
     return p.stat().st_size <= MAX_FILE_BYTES and not _looks_minified(p)

@@ -50,6 +50,6 @@ def make_document_encoder(spec: ModelSpec = JINA_CODE, device: str = "cpu") -> R
     """Documents: fp32 PyTorch only (on GPU when asked and available, falling back to CPU)."""
     candidates = []
     if device != "cpu":
-        candidates.append(Candidate(f"torch-fp32-{device}", lambda: TorchBackend(spec, device)))
+        candidates.append(Candidate(f"torch-fp32-{device}", lambda: TorchBackend(spec, device, batch_size=8)))
     candidates.append(Candidate("torch-fp32-cpu", lambda: TorchBackend(spec, "cpu")))
     return ResilientEncoder(candidates, dim=DIM)

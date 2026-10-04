@@ -354,3 +354,9 @@ def test_signature_header_only_for_statement_groups_of_split_definitions():
     assert "function big(alpha, beta)" not in embed_text(groups[-1])
     whole = chunk_source("w.js", "function w(a) { return a; }\n")[0]
     assert embed_text(whole, signature_header=True) == embed_text(whole)
+
+
+def test_declaration_files_are_not_indexed(tmp_path):
+    (tmp_path / "types.d.ts").write_text("declare function f(): void;\n")
+    (tmp_path / "real.ts").write_text("export function f(): void {}\n")
+    assert [p.name for p in iter_source_files(tmp_path)] == ["real.ts"]
