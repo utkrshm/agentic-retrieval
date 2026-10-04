@@ -11,6 +11,11 @@ so it is development data. BrowserOS (TypeScript, 50 questions written blind by 
 fresh check and was afterwards also used to choose settings. 50 queries resolve only differences of roughly 0.08 MRR or
 more (council estimate); treat gaps under about 0.05 as noise.
 
+Some experiments used components that were removed from the repository afterwards because they did not make the final
+pipeline: the OpenVINO int8 query path with its health probe and fallback chain, the Qwen3-Embedding-0.6B comparison model
+and the signature-header option. The experiments stay here as a record; the code is in the git history before commit
+`4e6b52d`.
+
 ## Map
 
 | File | Experiments |
