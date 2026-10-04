@@ -56,16 +56,16 @@ class RepoIndex:
     @classmethod
     def build(cls, repo: Path, encoder: DocumentEncoder, spec: ModelSpec = JINA_CODE,
               max_chars: int = MAX_CHARS, cache: VectorCache | None = None, batch: int = 64,
-              log=print) -> RepoIndex:
+              log=print, min_chars: int = 0, signature_header: bool = False) -> RepoIndex:
         t0 = time.perf_counter()
         repo = repo.resolve()
         units: list[Unit] = []
         n_files = 0
         for path in iter_source_files(repo):
-            file_units, _ = chunk_file(path, repo, max_chars)
+            file_units, _ = chunk_file(path, repo, max_chars, min_chars)
             units.extend(file_units)
             n_files += bool(file_units)
-        texts = [embed_text(u) for u in units]
+        texts = [embed_text(u, signature_header) for u in units]
         keys = [vector_key(spec, "document", t) for t in texts]
         have = {k: cache.get(k) for k in set(keys)} if cache is not None else {}
         have = {k: v for k, v in have.items() if v is not None}
@@ -87,7 +87,8 @@ class RepoIndex:
         meta = {
             "repo": repo.name, "path": str(repo), "commit": _git_head(repo), "model": spec.hf_id,
             "revision": spec.revision, "fingerprint": fingerprint(spec, kind="document", precision="fp32"),
-            "max_chars": max_chars, "n_units": len(units), "n_files": n_files, "dim": int(vectors.shape[1]),
+            "max_chars": max_chars, "min_chars": min_chars,
+            "signature_header": signature_header, "n_units": len(units), "n_files": n_files, "dim": int(vectors.shape[1]),
             "embedded_now": len(todo), "from_cache": len(keys) - len(todo),
             "build_seconds": round(time.perf_counter() - t0, 1), "built": time.strftime("%Y-%m-%d %H:%M:%S"),
         }

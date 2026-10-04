@@ -24,6 +24,10 @@ def main() -> None:
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--device", default="auto", choices=["auto", "cuda", "cpu"])
     ap.add_argument("--max-chars", type=int, default=MAX_CHARS)
+    ap.add_argument("--min-chars", type=int, default=0,
+                    help="fold statement groups under this many non-blank characters into a neighbour (0: off)")
+    ap.add_argument("--signature-header", action="store_true",
+                    help="add the enclosing signature to statement groups cut from a large definition")
     ap.add_argument("--batch", type=int, default=64)
     ap.add_argument("--no-cache", action="store_true")
     args = ap.parse_args()
@@ -34,7 +38,8 @@ def main() -> None:
     encoder = make_document_encoder(JINA_CODE, device)
     cache = None if args.no_cache else VectorCache(
         Path(".cache/vectors") / fingerprint(JINA_CODE, kind="document", precision="fp32"))
-    index = RepoIndex.build(args.repo, encoder, JINA_CODE, args.max_chars, cache, args.batch)
+    index = RepoIndex.build(args.repo, encoder, JINA_CODE, args.max_chars, cache, args.batch,
+                            min_chars=args.min_chars, signature_header=args.signature_header)
     index.save(args.out)
     m = index.meta
     print(f"\nindexed {m['repo']} @ {m['commit'][:10]}: {m['n_units']} units from {m['n_files']} files, "
