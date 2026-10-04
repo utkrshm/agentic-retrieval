@@ -1,6 +1,8 @@
 # Agentic Code Retrieval
 
-Our entry for Theme 01 of the Samsung PRISM GenAI Hackathon 2026: natural-language-to-code retrieval. Given a question such
+Video Demo Link: https://www.loom.com/share/d2efb905b1b04ebb873c2b4f3b7672c1
+
+Team Sunday Wasters' entry for Theme 01 of the Samsung PRISM GenAI Hackathon 2026: natural-language-to-code retrieval. Given a question such
 as "where is the retry logic for failed tool calls?", the system ranks the functions, methods and statement blocks of a code
 repository and returns the best matches as `file:line` ranges, with a link to each on GitHub.
 

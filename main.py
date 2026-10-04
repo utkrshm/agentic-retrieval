@@ -300,7 +300,7 @@ app = rx.App(
     stylesheets=[FONTS, "/app.css"],
     style={"font_family": "var(--font-sans)"},
 )
-app.add_page(index, route="/", title="Agentic Code Retrieval", on_load=State.load_engine)
+app.add_page(index, route="/", title="Agentic Code Retrieval - Team Sunday Wasters", on_load=State.load_engine)
 
 
 async def preload_models():
