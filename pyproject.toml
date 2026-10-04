@@ -16,6 +16,7 @@ dependencies = [
     "tree-sitter>=0.25,<0.26",
     "tree-sitter-python",
     "tree-sitter-javascript",
+    "tree-sitter-typescript>=0.23.2",
 ]
 
 [dependency-groups]

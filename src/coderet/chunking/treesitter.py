@@ -26,12 +26,13 @@ import hashlib
 import re
 import subprocess
 from collections.abc import Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import cache
 from pathlib import Path
 
 import tree_sitter_javascript as _tsjs
 import tree_sitter_python as _tspy
+import tree_sitter_typescript as _tsts
 from tree_sitter import Language, Node, Parser
 
 # jina-code was trained on sequences of 512 tokens (arXiv 2508.21290), about 2,000-2,500 chars of code.
@@ -43,6 +44,10 @@ EXTENSIONS = {
     ".mjs": "javascript",
     ".cjs": "javascript",
     ".jsx": "javascript",
+    ".ts": "typescript",
+    ".mts": "typescript",
+    ".cts": "typescript",
+    ".tsx": "tsx",
 }
 # Directories that hold generated or vendored code. ``node_modules`` is only skipped when
 # walking a directory that is not a git checkout: in a checkout, tracked files are
@@ -71,6 +76,7 @@ class Unit:
     text: str  # exact source lines start_line..end_line
     ast_hash: str  # token hash without comments/whitespace; groups "same code" across versions
     part: int = 0  # >0 when this is one piece of an oversized definition
+    group: bool = False  # True for a run of statements between definitions (not a definition itself)
 
 
 @dataclass
@@ -93,6 +99,10 @@ def _parser(language: str) -> Parser:
         return Parser(Language(_tspy.language()))
     if language == "javascript":
         return Parser(Language(_tsjs.language()))
+    if language == "typescript":
+        return Parser(Language(_tsts.language_typescript()))
+    if language == "tsx":
+        return Parser(Language(_tsts.language_tsx()))
     raise ValueError(f"unsupported language: {language}")
 
 
@@ -125,11 +135,12 @@ def _collapse(s: str, limit: int = 300) -> str:
 
 
 class _Extractor:
-    def __init__(self, path: str, data: bytes, language: str, max_chars: int) -> None:
+    def __init__(self, path: str, data: bytes, language: str, max_chars: int, min_chars: int = 0) -> None:
         self.path = path
         self.data = data
         self.language = language
         self.max_chars = max_chars
+        self.min_chars = min_chars
         self.lines = data.decode("utf-8", errors="replace").split("\n")
 
     # ---- spans and text -------------------------------------------------
@@ -197,7 +208,7 @@ class _Extractor:
         if t in _JS_FUNC_DECLS:
             name = self._node_text(node.child_by_field_name("name"))
             return _Def(node, "function", name, self._qual(parent_qual, name), node.child_by_field_name("body"))
-        if t == "class_declaration":
+        if t in {"class_declaration", "abstract_class_declaration"}:
             name = self._node_text(node.child_by_field_name("name"))
             body = node.child_by_field_name("body")
             members = list(body.named_children) if body is not None else []
@@ -233,10 +244,10 @@ class _Extractor:
 
     # ---- emission -------------------------------------------------------
     def _unit(self, nodes: list[Node], start: int, end: int, kind: str, name: str, qual: str,
-              sig: str, part: int, end_byte: int | None = None) -> Unit:
+              sig: str, part: int, end_byte: int | None = None, group: bool = False) -> Unit:
         text = self._text(start, end)
         h = _tokens_hash(nodes, end_byte) if nodes else _text_hash(text)
-        return Unit(self.language, self.path, kind, name, qual, start, end, sig, text, h, part)
+        return Unit(self.language, self.path, kind, name, qual, start, end, sig, text, h, part, group)
 
     def _windows(self, start: int, end: int, kind: str, name: str, qual: str, sig: str,
                  part0: int) -> list[Unit]:
@@ -282,7 +293,7 @@ class _Extractor:
             if group and not all(n.type == "comment" for n in group):
                 s, _ = self._span(group[0])
                 _, e = self._span(group[-1])
-                out.append(self._unit(list(group), s, e, kind, name, qual, sig, part))
+                out.append(self._unit(list(group), s, e, kind, name, qual, sig, part, group=True))
                 part += 1
             group.clear()
 
@@ -380,23 +391,62 @@ class _Extractor:
         out.extend(flushed)
         return out
 
+    def _merge_tiny(self, units: list[Unit]) -> list[Unit]:
+        """Fold statement groups with under min_chars non-blank characters into a neighbour.
+
+        A tiny group (``var x;``, ``})();``) carries almost no meaning, but its unit text still starts
+        with the file path and qualified name, so it can match a query on the name alone. It is merged
+        into the previous unit, else the next, only when the two are contiguous (nothing but blank
+        lines between them) and the merged text stays within max_chars. The neighbour keeps its kind,
+        name and part; only its span grows.
+        """
+        if self.min_chars <= 0:
+            return units
+        out: list[Unit] = []
+        i = 0
+        while i < len(units):
+            u = units[i]
+            tiny = u.group and sum(1 for c in u.text if not c.isspace()) < self.min_chars
+            if not tiny:
+                out.append(u)
+                i += 1
+                continue
+            prev = out[-1] if out else None
+            nxt = units[i + 1] if i + 1 < len(units) else None
+            if prev is not None and self._contiguous(prev.end_line, u.start_line) \
+                    and len(self._text(prev.start_line, u.end_line)) <= self.max_chars:
+                text = self._text(prev.start_line, u.end_line)
+                out[-1] = replace(prev, end_line=u.end_line, text=text, ast_hash=_text_hash(text))
+            elif nxt is not None and self._contiguous(u.end_line, nxt.start_line) \
+                    and len(self._text(u.start_line, nxt.end_line)) <= self.max_chars:
+                text = self._text(u.start_line, nxt.end_line)
+                units[i + 1] = replace(nxt, start_line=u.start_line, text=text, ast_hash=_text_hash(text))
+            else:
+                out.append(u)
+            i += 1
+        return out
+
+    def _contiguous(self, end_line: int, start_line: int) -> bool:
+        return start_line > end_line and all(not ln.strip() for ln in self.lines[end_line : start_line - 1])
+
     def run(self, root: Node) -> list[Unit]:
         units = self._scope(list(root.named_children), "", False, "module", "", "")
         units.sort(key=lambda u: (u.start_line, u.end_line, u.part))
-        return units
+        return self._merge_tiny(units)
 
 
 def chunk_source(path: str, source: str | bytes, language: str | None = None,
-                 max_chars: int = MAX_CHARS) -> list[Unit]:
+                 max_chars: int = MAX_CHARS, min_chars: int = 0) -> list[Unit]:
     lang = language or detect_language(path)
     if lang is None:
         raise ValueError(f"cannot detect language for {path!r}")
     data = source.encode("utf-8") if isinstance(source, str) else source
     tree = _parser(lang).parse(data)
-    return _Extractor(path, data, lang, max_chars).run(tree.root_node)
+    return _Extractor(path, data, lang, max_chars, min_chars).run(tree.root_node)
 
 
-def chunk_file(path: Path, root: Path, max_chars: int = MAX_CHARS) -> tuple[list[Unit], bool]:
+def chunk_file(path: Path, root: Path, max_chars: int = MAX_CHARS,
+               min_chars: int = 0) -> tuple[list[Unit], bool]:
     """Chunk one file. Returns (units, parse_had_errors)."""
     data = path.read_bytes()
     lang = detect_language(path)
@@ -404,7 +454,7 @@ def chunk_file(path: Path, root: Path, max_chars: int = MAX_CHARS) -> tuple[list
         return [], False
     tree = _parser(lang).parse(data)
     rel = path.relative_to(root).as_posix()
-    return _Extractor(rel, data, lang, max_chars).run(tree.root_node), tree.root_node.has_error
+    return _Extractor(rel, data, lang, max_chars, min_chars).run(tree.root_node), tree.root_node.has_error
 
 
 def _looks_minified(path: Path) -> bool:
@@ -454,7 +504,13 @@ def iter_source_files(root: Path, extensions: set[str] | None = None) -> Iterato
                 yield p
 
 
-def embed_text(u: Unit) -> str:
-    """Text that gets embedded for a unit: where it is, what it is, then the code."""
+def embed_text(u: Unit, signature_header: bool = False) -> str:
+    """Text that gets embedded for a unit: where it is, what it is, then the code.
+
+    With ``signature_header`` a statement group cut out of a larger definition also carries that
+    definition's signature, which is otherwise only visible in the first piece.
+    """
     head = f"{u.path}\n{u.kind} {u.qualname}".strip()
+    if signature_header and u.group and u.signature:
+        head += f"\n{u.signature}"
     return f"{head}\n{u.text}"

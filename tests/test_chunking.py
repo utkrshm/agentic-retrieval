@@ -289,3 +289,68 @@ def test_chunk_file_reports_relative_path_and_errors(tmp_path: Path):
 def test_invariants_hold_at_any_size_limit(max_chars: int):
     for name, src in (("m.py", PY), ("m.js", JS)):
         _check_invariants(src, chunk_source(name, src, max_chars=max_chars))
+
+
+# ---- TypeScript, tiny-fragment merge and signature header ------------------------------------
+
+TS_SRC = """\
+import { x } from "./x";
+
+export interface Opts { a: number }
+
+export abstract class Repo {
+  abstract load(id: string): Promise<void>;
+  save(id: string): void {
+    console.log(id);
+  }
+}
+
+export const run = async (n: number): Promise<number> => {
+  return n + 1;
+};
+"""
+
+
+def test_typescript_units_and_tsx():
+    units = chunk_source("a/repo.ts", TS_SRC)
+    names = {u.qualname for u in units}
+    assert {"Repo.save", "run"} <= names
+    assert all(1 <= u.start_line <= u.end_line for u in units)
+    tsx = chunk_source("a/view.tsx", "export const View = () => <div>hi</div>;\n")
+    assert [u.qualname for u in tsx] == ["View"]
+
+
+MERGE_SRC = "var a;\n\nfunction f() {\n  return 1;\n}\n\nvar b;\n\nfunction g() {\n  return 2;\n}\n\nregister(g);\n"
+
+
+def test_tiny_groups_merge_into_neighbour_only_when_contiguous():
+    plain = chunk_source("m.js", MERGE_SRC)
+    merged = chunk_source("m.js", MERGE_SRC, min_chars=20)
+    assert len(merged) < len(plain)
+    # no unit text is lost and each unit is exactly the lines of its span
+    lines = MERGE_SRC.split("\n")
+    for u in merged:
+        assert u.text == "\n".join(lines[u.start_line - 1 : u.end_line])
+    covered = {ln for u in merged for ln in range(u.start_line, u.end_line + 1)}
+    assert {ln for ln, s in enumerate(lines, 1) if s.strip()} <= covered
+    assert "f" in {u.qualname for u in merged} and "g" in {u.qualname for u in merged}
+
+
+def test_merge_respects_max_chars_and_is_off_by_default():
+    assert chunk_source("m.js", MERGE_SRC) == chunk_source("m.js", MERGE_SRC, min_chars=0)
+    capped = chunk_source("m.js", MERGE_SRC, max_chars=30, min_chars=20)
+    assert all(len(u.text) <= 30 or u.start_line == u.end_line for u in capped)
+
+
+def test_signature_header_only_for_statement_groups_of_split_definitions():
+    from coderet.chunking import embed_text
+
+    body = "\n".join(f"  var v{i} = compute({i});" for i in range(40))
+    src = f"function big(alpha, beta) {{\n{body}\n}}\n"
+    units = chunk_source("big.js", src, max_chars=300)
+    groups = [u for u in units if u.group]
+    assert len(groups) > 1
+    assert "function big(alpha, beta)" in embed_text(groups[-1], signature_header=True)
+    assert "function big(alpha, beta)" not in embed_text(groups[-1])
+    whole = chunk_source("w.js", "function w(a) { return a; }\n")[0]
+    assert embed_text(whole, signature_header=True) == embed_text(whole)
