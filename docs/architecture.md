@@ -1,139 +1,66 @@
 # Architecture
 
-Samsung PRISM GenAI Hackathon 2026, Theme 01 (code retrieval). What is judged: the retrieval
-engine's ranking quality, and partly search across versions of code. Reranking is not tested; the
-live demo is run by a person. This file separates **implemented**, **planned** and **measured**
-so nothing planned is mistaken for something that exists.
+Samsung PRISM GenAI Hackathon 2026, Theme 01 (code retrieval): rank the code snippets of a repository for a natural-language
+question and return `file:line` ranges. Query time runs on CPU; a GPU is only used offline to embed repositories. This file
+separates **implemented** from **measured**; measurements live in `experiments/`.
 
 ## Design rules (decided)
 
-- One embedding model: `jinaai/jina-code-embeddings-0.5b`, pinned to revision `4db23513`, code-trained,
-  last-token pooling, L2-normalised, 896 dimensions. No licence considerations.
-- Query-time inference on CPU. A GPU is only for offline work (document encoding, evaluation).
-- Plain MTEB encoder path (`PrePostPipelineEncoder`) for the official benchmark. No `SearchProtocol`.
-- Exact search only (FAISS flat inner product, planned). No SQLite, no graph, no reranker, no LLM at
-  query time, no agent loop (decision pending, see `handoff.md`).
-- PyTorch fp32 is the reference backend. OpenVINO int8 is an optional, query-side speed-up with
-  automatic fallback. Documents are always fp32: int8 and fp32 vectors are never mixed in one index.
-- One pipeline for every language. Tree-sitter covers Python and JavaScript now.
+- Two embedding models, both open-weight and run as fp32 PyTorch: `google/embeddinggemma-300m` (revision `57c266a7`, 768-d)
+  and `jinaai/jina-code-embeddings-0.5b` (revision `4db23513`, 896-d, trained on AppsRetrieval's training split). Gemma is
+  mean-pooled with dense layers and must not run in fp16; jina-code is last-token pooled. Vectors are L2-normalised.
+- Exact FAISS inner-product search, one index per model, over identical units. No SQLite, no graph, no LLM at query time, no
+  learned reranker, no cross-encoder.
+- A gated BM25 lane for queries that name an identifier or quote a message, merged by reciprocal rank fusion (it builds the
+  candidate pool); the final order is a min-max blend of jina-code, Gemma and BM25 scores.
+- Test files are excluded unless the query asks for tests; candidates are filtered before the top-k.
+- The official AppsRetrieval path is a plain encoder with pre and post processing (`PrePostPipelineEncoder`) and stays free of
+  the repository additions (the BM25 lane lowers the benchmark score by about 11 NDCG points).
+- Both indexes of a repository hold identical units in the same order; vectors are cached by the exact embedded text.
 
 ## Implemented
 
 ```text
-source files --> coderet.chunking (tree-sitter) --> units (file:line, kind, qualname, text, ast_hash)
-                                                        |
-                                                        v   embed_text(unit) = path + "kind qualname" + code
-queries / documents --> coderet.embed.ResilientEncoder --> L2-normalised float32 vectors (896-d)
-                          chain for queries:  OpenVINO int8 -> OpenVINO fp32 -> PyTorch fp32
-                          documents:          PyTorch fp32 (GPU if available, else CPU)
-                                                        |
-                          coderet.mteb_adapters.PrePostPipelineEncoder --> mteb.evaluate(AppsRetrieval)
+offline:  checkout --coderet.chunking--> units (file:line, kind, qualname, text)
+          units --TorchBackend(Gemma)--> FAISS A        units --TorchBackend(jina-code)--> FAISS B
+          (vector cache key = hash(model revision, role, prompt, length limit, precision, exact embedded text))
 
-units + vectors --> coderet.index.RepoIndex (FAISS flat inner product, one commit) --> top-k units with file:line
-                    vector cache key = hash(model revision + prompt + length limit + precision + exact embed text)
+query:    Gemma encodes the query --> Searcher (test scope, gated BM25 + RRF) --> Gemma's top-50 units
+          jina-code encodes the query --> blend: (1 - g) * (0.7 jina + 0.3 gemma) + g * bm25 --> top-10
 ```
 
 | Module | What it does |
 |---|---|
-| `coderet/config.py` | `ModelSpec`, the `JINA_CODE` entry (prompts, revision, 1,024-token limit) and `fingerprint()`, a hash of every vector-affecting setting, used as the MTEB model revision so stale scores are never reused. |
-| `coderet/chunking/treesitter.py` | Splits Python and JavaScript into units. Functions and methods are units, with leading comments or JSDoc inside the span; a class header is a unit only if it holds more than the declaration line; remaining top-level statements are grouped into `module` units; oversized code is split by descending the syntax tree (wrapper functions and IIFEs surface their inner functions), and only an indivisible leaf is cut by lines. Default limit 2,500 characters (jina was trained on 512-token sequences). `ast_hash` hashes the token stream without comments and whitespace and is for grouping versions only, never a cache key. `iter_source_files` uses `git ls-files` in a checkout (Node-RED keeps real source under `packages/node_modules/`), and skips dist/build/vendor and minified files. |
-| `coderet/embed/backends.py` | `TorchBackend` (sentence-transformers, forced fp32 because the checkpoint ships bfloat16) and `OpenVinoBackend` (raw OpenVINO runtime, own tokenisation, last-token pooling, batch 1). |
-| `coderet/embed/export.py` | Exports the model to OpenVINO with optimum-intel, compresses weights to int8 with NNCF, and stores fp32 PyTorch reference vectors for the health probe under `.cache/openvino/`. |
-| `coderet/embed/probe.py` | Fixed startup health probe: finite, unit-norm, right dimension, semantic ordering on three triples, and cosine to the stored reference. |
-| `coderet/embed/resilient.py` | `ResilientEncoder`: activates the first backend that builds and passes the probe; on any error or invalid output at runtime it demotes that backend permanently and retries the same batch on the next one; raises `EncoderUnavailable` if all fail; records every decision in `events`. |
-| `coderet/index/cache.py` | `vector_key()` hashes the model revision, role prompt, length limit, precision and the exact embedded text (never the syntax-tree hash, which ignores comments and file paths); `VectorCache` persists vectors by that key so a re-index only embeds units whose text changed. |
-| `coderet/index/repo_index.py` | `RepoIndex`: chunks a checkout, embeds the units (fp32), builds an exact FAISS `IndexFlatIP` and saves/loads it (`meta.json`, `units.jsonl`, `vectors.npy`, `index.faiss`). One index describes one commit; there is no manifest yet. Identical code in two files stays two results. |
-| `coderet/eval/repo_queries.py` | The hit rule (same file, overlapping line range) and metrics (Recall@1/5/10, MRR@10, gold recall) for the labelled repository queries. |
-| `coderet/mteb_adapters/encoder.py` | `PrePostPipelineEncoder` (the class named in the theme-1 guidelines): `preprocess -> embed -> postprocess`, role derived from MTEB's `PromptType`. It only sees what MTEB passes in. |
+| `coderet/config.py` | `ModelSpec` registry (jina-code, embeddinggemma: prompts, pinned revision, sequence limit) and `fingerprint()`, a hash of every vector-affecting setting. |
+| `coderet/chunking/treesitter.py` | Python, JavaScript, TypeScript and TSX into units: functions, methods, class headers (only if more than the declaration line) and statement groups; oversized code is split along the syntax tree; statement groups under 60 non-blank characters merge into a contiguous neighbour; units are at most 2,500 characters. `.d.ts`, `generated/`, dist, build, vendor and minified files are skipped; in a git checkout the tracked files are enumerated. |
+| `coderet/embed/backends.py`, `vectors.py` | `TorchBackend` (sentence-transformers, fp32, role prompts as text prefixes) and `validate_vectors` (finite, unit norm, right dimension). |
+| `coderet/index/cache.py` | `vector_key`, `VectorCache`: vectors keyed by the exact embedded text, never the syntax-tree hash. |
+| `coderet/index/repo_index.py` | `RepoIndex`: chunk (or take pre-chunked units), embed, build an exact FAISS `IndexFlatIP`, save and load (`meta.json`, `units.jsonl`, `vectors.npy`, `index.faiss`). |
+| `coderet/index/lexical.py` | Identifier-aware BM25 (whole identifiers plus snake_case and camelCase sub-tokens; a quoted phrase is one rare term), the anchor gate (a quoted literal or code-shaped token that exists in the code) and reciprocal rank fusion (k = 60). |
+| `coderet/index/search.py` | `Searcher`: test-file scope applied through a FAISS ID selector before the top-k, plus the gated BM25 lane. |
+| `coderet/index/fusion.py` | `FusionSearcher`: Gemma's top-50 from `Searcher`, re-scored by the min-max blend of jina-code, Gemma and BM25 (weights 0.7 and 0.25); returns per-model scores, the gate flag, the test-scope flag and per-stage timings. |
+| `coderet/demo/` | `RepositoryIndexer` (open a GitHub link: shallow clone and CPU indexing with both models) and `Engine` (loads both models once, serves searches, builds result cards with commit-pinned GitHub links). |
+| `coderet/eval/repo_queries.py` | Hit rule (same file, overlapping line range) and metrics (Recall@1/5/10, MRR@10, gold recall). |
+| `coderet/mteb_adapters/encoder.py` | `PrePostPipelineEncoder` for the official benchmark: `preprocess -> embed -> postprocess`, role from MTEB's `PromptType`. |
+| `main.py`, `rxconfig.py`, `assets/` | The Reflex demo UI. |
 
 | Script | Purpose |
 |---|---|
-| `scripts/run_mteb.py` | Official-format run on AppsRetrieval; writes `outputs/appsretrieval_results.json`. Uses the test split: run only for a frozen configuration. |
-| `scripts/export_openvino.py` | One-off export (about 40 s, about 4 GB RAM). |
-| `scripts/bench_encoder.py` | Agreement with PyTorch and warm batch-1 latency per backend on real code units. |
-| `scripts/failure_drill.py` | Breaks the real exported models seven ways and checks that the encoder recovers. |
-| `scripts/index_repo.py` | Builds the FAISS index of a repository's current checkout (offline: fp32 on the GPU when there is one). |
-| `scripts/run_queries.py` | Runs the labelled queries against an index and logs the top-k units per query, hit flags, snippets, timings and metrics to JSON. |
-| `scripts/chunk_repo.py` | Chunks a repository and reports units, coverage, size distribution and parse errors; checks the span invariant. |
+| `scripts/run_mteb.py` | Official-format AppsRetrieval run (`--model` jina-code or embeddinggemma); test split, frozen configurations only. |
+| `scripts/index_repo.py` | Build one model's index of a checkout. |
+| `scripts/run_queries.py`, `ablate_repo.py`, `two_stage_repo.py`, `fusion_repo.py` | Evaluate labelled questions: one index, search settings, the two-stage search, the fusion experiment. |
+| `scripts/eval_fusion.py`, `bench_two_stage.py` | Metrics and CPU latency of the settled search; latency of the variants. |
+| `scripts/apps_two_stage.py` | Scores the search variants on the benchmark data with MTEB's metrics (not the submission path). |
+| `scripts/chunk_repo.py` | Inspect the chunker on a repository. |
 
-Data: `eval/node-red/queries.json` holds 50 hand-labelled queries on Node-RED (30 dev, 20 holdout: behavioural 28,
-exact name 9, setting 6, registration 7), labelled at commit `cd05a9a38b`. They were written from sampled source
-units before any retrieval result was seen; gold is resolved mechanically from the chunker's units.
-
-Tests: `uv run pytest` (45 tests, no model downloads or GPU needed).
-
-## Planned (not built)
-
-- `repo` and `library` input modes. In `library` mode each document is one unit with no tree-sitter
-  (AppsRetrieval documents are whole programs ranked by document id; chunking them would break the
-  mapping). In `repo` mode, tree-sitter units.
-- Per-commit JSON manifests (path, span, kind, qualname, vector key, content key). "As of commit X"
-  rebuilds a small flat index from the manifest, so results are filtered before the top-k, never after.
-- Search across versions: search unique variants, group hits by `(path, kind, qualname)`, show the best
-  variant with the others expandable, newest first.
-- Identifier-aware BM25 fused with dense scores by plain RRF, gated to queries that contain code-like
-  tokens, kept only if it wins on a held-out set.
-- Using the labelled queries to decide unit size, BM25 and the path header. The 20 holdout queries have now been
-  seen by reviewers, so they behave as a second dev set: a fresh holdout must be written before any final claim.
-- A one-page Reflex demo (query box, version selector, timings, ranked snippets with file:line).
-
-## Measured
-
-All on one laptop: i5-12500H (AVX2 and AVX-VNNI, no AVX-512/AMX), RTX 3050 4 GB, 15 GB RAM.
-
-**Encoder backends** (`scripts/bench_encoder.py`, 40 real Node-RED units, warm, batch 1):
-
-| backend | short query | long code query | code document | cosine to PyTorch fp32 (min) |
-|---|---|---|---|---|
-| PyTorch fp32 | 80 ms | 377 ms | 324 ms | 1.0 |
-| OpenVINO fp32 | 61 ms | 424 ms | 299 ms | 1.0 |
-| OpenVINO int8 | 24 ms | 196 ms | 154 ms | 0.9987 |
-
-int8 queries against the shipped fp32 document vectors, 500 APPS-train dev queries: NDCG@10 96.85 against
-96.96 for fp32 (paired change -0.10 points, 95% interval -0.42 to +0.17), MRR@10 95.86 against 95.99,
-top-10 overlap 97.1%, top-1 agreement 99.2%. These scores are inflated because jina-code was trained on
-APPS train; the paired comparison is what matters.
-
-**Chunker** on Node-RED (467 JS files): 5,787 units, median 1,200 characters, none above 2,500, 97.8% of
-non-blank lines covered, no parse errors, no span-invariant violations, 2.9 s.
-
-**Node-RED, 50 labelled queries** (`scripts/index_repo.py` then `scripts/run_queries.py`; index of 5,787 units at commit
-`cd05a9a38b`, built in 503 s on the GPU; jina-code fp32 for documents and queries; no BM25, nothing tuned):
-
-| split | n | Recall@1 | Recall@5 | Recall@10 | MRR@10 |
-|---|---|---|---|---|---|
-| dev | 30 | 0.667 | 0.833 | 0.900 | 0.746 |
-| holdout | 20 | 0.550 | 0.950 | 1.000 | 0.705 |
-
-Holdout by category: behavioural (11) Recall@1 0.73, MRR 0.85; registration (3) MRR 0.83; setting (2) MRR 0.33;
-exact name (4) Recall@1 0.25, MRR 0.40. Dev: behavioural (17) MRR 0.71; exact (5) 0.90; setting (4) 0.46;
-registration (4) 1.00. The OpenVINO int8 query chain gives the same recalls (MRR 0.752 dev, 0.707 holdout).
-Observed weaknesses: literal and error-code queries rank the right unit low (`install_not_allowed` first hits at
-rank 7), tests (`*_spec.js`, `test/`) and one-line fragment units appear among the top matches, and a function split
-into several units shows several units with the same name and no header.
-
-**AppsRetrieval, test split, official format** (`scripts/run_mteb.py`, PyTorch fp32, GPU):
-
-| metric (test split, 3,765 queries x 8,765 documents) | this run (fp32, GPU) | earlier frozen run (bf16, GPU) |
-|---|---|---|
-| NDCG@10 | 83.83 | 83.87 |
-| MRR@10 | 80.79 | 80.83 |
-| Recall@1 | 73.81 | 73.84 |
-| Recall@10 | 93.23 | 93.28 |
-| Recall@20 | 95.64 | 95.62 |
-| Recall@100 | 98.51 | 98.51 |
-
-Run: `scripts/run_mteb.py`, PyTorch fp32 for documents and queries, RTX 3050, 16.5 minutes, run fingerprint
-`642fc13092c7`, output `outputs/appsretrieval_results.json` (git-ignored; MTEB's own loader reads it back).
-fp32 against bf16 changes nothing measurable (under 0.05 points). jina-code-0.5b was trained on AppsRetrieval
-train, no tuning of any kind was done on this split, and published scores for this model are 81.6 to 84.2.
+Data: `eval/node-red/queries.json` and `eval/browseros/queries.json` hold 50 hand-labelled questions each (30 dev, 20
+holdout); gold is resolved mechanically to chunker units. Tests: `uv run pytest` (51 tests, no models, dataset or GPU).
 
 ## Known limitations
 
-- jina-code was trained on AppsRetrieval train, so APPS-train splits cannot validate it, and the test
-  score is a property of this model more than of this pipeline.
-- Chunk size, BM25 gating and the path header are untested on labelled queries (none exist yet).
-- Tree-sitter call and definition facts are name-based. There is no call graph and no support for
-  questions such as "which files call A before B".
-- OpenVINO exports of this model must run through the raw runtime: sentence-transformers' OpenVINO
-  wrapper returned NaN for every input.
+- jina-code was trained on AppsRetrieval's training split, so APPS-train splits cannot validate it and its benchmark score is
+  partly in-domain.
+- Both labelled question sets are now exposed (Node-RED designed the BM25 gate, BrowserOS chose settings); 50 questions resolve
+  only large differences.
+- Two encoders at query time cost about the sum of both encodings and keep both models in memory.
+- Tree-sitter call and definition facts are name-based: there is no call graph.
