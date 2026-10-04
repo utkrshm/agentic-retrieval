@@ -27,8 +27,8 @@ def main() -> None:
                     help="embedding model; non-jina models are comparison runs on plain PyTorch fp32")
     ap.add_argument("--device", default="auto", choices=["auto", "cuda", "cpu"])
     ap.add_argument("--max-chars", type=int, default=MAX_CHARS)
-    ap.add_argument("--min-chars", type=int, default=0,
-                    help="fold statement groups under this many non-blank characters into a neighbour (0: off)")
+    ap.add_argument("--min-chars", type=int, default=60,
+                    help="fold statement groups under this many non-blank characters into a neighbour (0: off; 60 was neutral to slightly positive on two repos)")
     ap.add_argument("--signature-header", action="store_true",
                     help="add the enclosing signature to statement groups cut from a large definition")
     ap.add_argument("--batch", type=int, default=64)
