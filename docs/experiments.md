@@ -190,7 +190,11 @@ treat gaps under about 0.05 as noise.
 - **Conclusion:** the AppsRetrieval tie does not carry over to the repositories on top-1 precision: jina orders
   the first answer better, Gemma retrieves a slightly better candidate pool. The gaps are at the edge of what 50
   queries resolve (a Recall@10 difference of 0.04 is two queries). Gemma is smaller (308M against 0.5B) and was
-  not timed on the CPU here.
+  not timed in the retrieval runs; a separate CPU timing (i5-12500H, PyTorch fp32, batch 1, warm, 12 threads, 15
+  runs) gave Gemma 65 ms p50 (p95 81) on a short query and 338 ms (p95 371) on a 398-token query, against jina
+  fp32 82 ms (p95 84) and 880 ms (p95 886) on a 399-token query. jina int8 OpenVINO, measured earlier with 4
+  threads on different text, was 24 ms short and 196 ms long, so Gemma fp32 is faster than jina fp32 but not
+  faster than jina int8 (no Gemma int8 export exists).
 
 ### E13. Incidents worth remembering
 
