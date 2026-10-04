@@ -196,6 +196,46 @@ treat gaps under about 0.05 as noise.
   threads on different text, was 24 ms short and 196 ms long, so Gemma fp32 is faster than jina fp32 but not
   faster than jina int8 (no Gemma int8 export exists).
 
+### E12b. Two-stage: Gemma retrieves the top-N, jina re-scores them
+
+- **Idea (from the user):** Gemma finds a better candidate pool and jina orders the top better, so let Gemma
+  retrieve and jina choose. Both indexes hold the same units, so jina's document vectors for Gemma's candidates
+  are already stored; the only extra query cost is a second query encoding.
+- **Setup:** stage one is Gemma with test scope and the lexical lane; its top-N is re-ordered by jina cosine
+  (or by the sum of both normalised cosines), then the rest of the top 10 follows. Also the reverse (jina
+  retrieves, Gemma re-scores). `scripts/two_stage_repo.py`; N in 5, 10, 20 on Node-RED, 5 and 10 on BrowserOS.
+  N was explored after seeing the data, so this is exploratory.
+- **Expected:** at or above jina alone on MRR, with Gemma's Recall@10.
+- **Happened (MRR@10 / Recall@1 / Recall@10):**
+
+  | System | Node-RED | BrowserOS |
+  |---|---|---|
+  | jina alone | 0.848 / 0.78 / 0.96 | 0.734 / 0.62 / 0.96 |
+  | Gemma alone | 0.801 / 0.72 / 1.00 | 0.717 / 0.56 / 1.00 |
+  | Gemma top-5, jina re-scores | 0.831 / 0.78 / 1.00 | 0.772 / 0.68 / 1.00 |
+  | Gemma top-10, jina re-scores | 0.815 / 0.72 / 1.00 | 0.783 / 0.68 / 1.00 |
+  | Gemma top-20, jina re-scores | 0.783 / 0.68 / 0.96 | not run |
+  | jina top-5/10, Gemma re-scores | 0.798 / 0.792 | 0.733 / 0.765 |
+
+  Against jina alone, per query: Node-RED top-5 6 better, 5 worse; BrowserOS top-5 10 better, 4 worse, and
+  top-10 11 better, 1 worse. Re-scoring by the sum of both cosines is never better than jina alone's MRR on
+  Node-RED. Wider pools (N=20) get worse. Using Gemma as the second stage is worse than jina alone in most rows.
+- **Conclusion:** it keeps Gemma's Recall@10 of 1.00 on both repos (jina alone 0.96) and recovers most of the
+  top-1 gap, but the MRR effect is mixed: above jina alone on BrowserOS (+0.04 to +0.05) and below it on
+  Node-RED (-0.02 to -0.03). The two repos disagree, so the gain is not established on 100 queries.
+- **CPU-only cost** (`scripts/bench_two_stage.py`, GPU hidden, warm batch 1, 50 BrowserOS questions that are
+  short, about 20 tokens each, end-to-end per query, search plus lexical lane included, models already loaded):
+
+  | Threads / jina query encoder | jina alone p50 / p95 | Gemma alone p50 / p95 | two-stage p50 / p95 |
+  |---|---|---|---|
+  | 12, fp32 | 96 / 115 ms | 71 / 89 ms | 169 / 198 ms |
+  | 4, fp32 | 85 / 101 ms | 47 / 70 ms | 126 / 144 ms |
+  | 4, jina int8 OpenVINO | 39 / 49 ms | 43 / 53 ms | 82 / 104 ms |
+
+  So the two-stage path costs about the sum of both encoders: roughly 2 to 3 times Gemma alone. It also needs
+  both models in memory and both indexes (about 3 GB of weights). Long queries cost more (earlier fp32 timing:
+  Gemma 338 ms, jina 880 ms at about 400 tokens). Startup (model loading) was 7 to 15 s and is not included.
+
 ### E13. Incidents worth remembering
 
 - **Silent CPU fallback during indexing:** a first re-index hit a CUDA out-of-memory error on its first batch;
