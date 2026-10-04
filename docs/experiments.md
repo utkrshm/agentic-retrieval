@@ -1,0 +1,218 @@
+# Experiments
+
+Every experiment run so far on `feat/v1`: what we expected, what happened, and what we concluded. Section 2
+explains in plain words how the pipeline changed because of them. Numbers are copied from run output; where a
+number is a guess or an estimate by a reviewing agent, it says so.
+
+Hardware for everything: i5-12500H (4 performance cores, AVX2 and AVX-VNNI, no AVX-512/AMX), RTX 3050 4 GB,
+15 GB RAM, Python 3.11. Reviewing agents are "the council" (Sol, Astra, Opus); their effect sizes are opinions
+unless stated.
+
+Reading the repository results: Node-RED (JavaScript, 50 queries) is where the lexical lane and test scope were
+designed, so it is development data. BrowserOS (TypeScript, 50 questions written blind by a subagent that saw no
+results) is the fresh check. 50 queries only resolve large differences (about 0.08 MRR or more, council estimate);
+treat gaps under about 0.05 as noise.
+
+## 1. Experiment log
+
+### E1. Official benchmark run (AppsRetrieval, test split)
+
+- **Setup:** `PrePostPipelineEncoder` plus `mteb.evaluate`, jina-code-0.5b, PyTorch fp32, 1,024-token limit.
+  3,765 queries against 8,765 Python programs (one relevant program per query).
+- **Expected:** about 83.9 NDCG@10 (an earlier bf16 run gave 83.87; published range 81.6 to 84.2).
+- **Happened:** NDCG@10 83.83, MRR@10 80.79, Recall@1 73.81, Recall@10 93.23, Recall@100 98.51.
+  fp32 against bf16 changes nothing measurable (under 0.05).
+- **Conclusion:** the pipeline reproduces the published level. jina-code was trained on AppsRetrieval train, so
+  the score says as much about the model as the pipeline.
+
+### E2. Query-side int8 with OpenVINO
+
+- **Setup:** export the model to OpenVINO, compress weights to int8 (NNCF), compare with PyTorch fp32 on real
+  code and on 500 APPS-train queries searched against fp32 document vectors.
+- **Expected:** 2 to 3 times faster queries with no measurable quality loss.
+- **Happened:** warm batch-1 latency 80 to 24 ms (short query) and 377 to 196 ms (long code query); minimum
+  cosine to fp32 0.9987; NDCG@10 96.85 against 96.96 (paired change -0.10, 95% interval -0.42 to +0.17).
+  The sentence-transformers OpenVINO wrapper returned NaN for every input, so a raw-runtime backend was written.
+- **Conclusion:** int8 is a safe optional query speed-up. Documents stay fp32; the two precisions are never mixed
+  in one index.
+
+### E3. Failure drill for the encoder fallback chain
+
+- **Setup:** break the real exported models seven ways (truncated weights, missing graph, wrong reference, no
+  OpenVINO, crash mid-run, NaN mid-run) in separate subprocesses.
+- **Expected:** every scenario ends on a working backend with a vector within cosine 0.99 of the healthy one.
+- **Happened:** all seven recovered. The first version of the drill leaked memory and the OOM killer ended it;
+  it was rewritten to use one subprocess per scenario. A dangling relative symlink meant the middle fallback was
+  not actually being exercised until it was fixed.
+- **Conclusion:** the int8, OpenVINO fp32, PyTorch fp32 chain recovers from each tested fault.
+
+### E4. Tree-sitter chunker on a real repository
+
+- **Setup:** chunk Node-RED (467 JavaScript files).
+- **Expected:** units that cover the code, stay under 2,500 characters, and have exact line spans.
+- **Happened:** 5,787 units, median 1,200 characters, none above the limit, 97.8% of non-blank lines covered,
+  no parse errors, no span violations, 2.9 s. tree-sitter 0.26.0 returned wrong node positions and crashed on
+  real JavaScript; 0.24 and 0.25 are fine, so the dependency is pinned below 0.26.
+- **Conclusion:** the chunker is usable. It was later extended to TypeScript (E9).
+
+### E5. Dense-only retrieval on Node-RED (baseline)
+
+- **Setup:** jina-code fp32 for documents and queries, exact FAISS search, 50 hand-labelled queries (30 dev, 20
+  holdout; behavioural, exact name, setting, registration).
+- **Expected:** behavioural questions work; exact and setting questions are weaker (the council predicted this
+  from how embeddings spread score over a file).
+- **Happened (first labels):** dev Recall@1 0.667, Recall@10 0.90, MRR@10 0.746; holdout Recall@1 0.55,
+  Recall@10 1.0, MRR@10 0.705. Holdout behavioural MRR 0.85, exact-name 0.40. `install_not_allowed` first hit
+  at rank 7. Spec files and one-line fragments filled the top 5.
+- **Conclusion:** the weak spot is exact literals and error codes, and the top 5 is noisy.
+
+### E6. Label audit
+
+- **Expected:** a few "misses" might be correct answers we had not labelled.
+- **Happened:** h05 ("read a nested property from a message using a dotted path") also matches
+  `getMessageProperty`, and d03 (remove context for nodes no longer present) also matches the context manager's
+  `clean()`. Both were added to gold, recorded in a `label_fixes` field because the change was made after
+  results were seen. Baselines moved slightly (dense MRR 0.746 to 0.771 on dev).
+- **Conclusion:** use the corrected labels for every comparison after this point; earlier numbers are not
+  directly comparable.
+
+### E7. Model comparison on AppsRetrieval test (same script, PyTorch fp32)
+
+- **Expected:** embeddinggemma-300m near its published 84.4; Qwen3-Embedding-0.6B near 75; jina-code 83.8.
+- **Happened:**
+
+  | Model | NDCG@10 | MRR@10 | Recall@1 | Recall@10 | Recall@100 |
+  |---|---|---|---|---|---|
+  | embeddinggemma-300m | 84.28 | 80.81 | 72.96 | 94.95 | 99.47 |
+  | jina-code-0.5b | 83.83 | 80.79 | 73.81 | 93.23 | 98.51 |
+  | Qwen3-Embedding-0.6B | 73.49 | 68.89 | 59.39 | 87.89 | 97.77 |
+
+  Qwen3 needed micro-batch 1 after a CUDA out-of-memory error at batch 4.
+- **Conclusion:** Gemma and jina are tied on this benchmark (Gemma +0.45 NDCG@10, jina +0.85 Recall@1;
+  single runs, no interval). Qwen3-0.6B is clearly behind. An older bakeoff on an APPS-train dev split put jina at
+  96.96, which is inflated because jina trained on it; it should not be used to compare models.
+
+### E8. Gated lexical lane (BM25 plus rank fusion) and test-file scope on Node-RED
+
+- **Setup:** identifier-aware BM25 (whole identifiers plus snake_case and camelCase parts, a quoted phrase as one
+  rare term). It only runs when the query holds a quoted literal or a snake_case, camelCase or dotted identifier
+  that actually occurs in the code; dense and BM25 top-100 are fused with reciprocal rank fusion (k=60). Test
+  files (test dirs, `*.test.*`, `*.spec.*`, `*_spec.js`, `test_*.py`) are filtered out before the top-k unless
+  the query mentions tests.
+- **Expected (council estimates):** lexical lane +0.02 to +0.06 overall MRR@10, mostly on exact and setting
+  queries, no change on behavioural; test scope +0.02 to +0.05 (Opus guess), 0 to +0.03 (Sol).
+- **Happened (corrected labels, `.d.ts` files excluded):**
+
+  | Config | MRR@10 all | exact | setting | behavioural | registration |
+  |---|---|---|---|---|---|
+  | dense | 0.755 | 0.677 | 0.417 | 0.809 | 0.929 |
+  | + test scope | 0.761 | 0.689 | 0.417 | 0.815 | 0.929 |
+  | + lexical lane | 0.845 | 0.944 | 0.764 | 0.809 | 0.929 |
+  | + both | 0.848 | 0.944 | 0.764 | 0.815 | 0.929 |
+
+  The lane improved 8 queries and made none worse. h13, h14, h15 moved from ranks 7, 4, 5 to 1, 2, 1.
+- **Conclusion:** a much larger effect than predicted on Node-RED, but the lane was designed after seeing these
+  failures, so Node-RED cannot confirm it (see E13).
+
+### E9. TypeScript support exposed a distractor problem
+
+- **Expected:** adding the TypeScript grammar would only add TypeScript units (needed for BrowserOS).
+- **Happened:** Node-RED gained 51 `.d.ts` files (vendored Node typings, 1,045 units). They took the top ranks
+  for d07 ("kill a child process") and d08 ("add HTTP headers"), pushing the real code out of the top 10: dense
+  Recall@10 fell from 0.90 to 0.833 on dev.
+- **Fix:** `.d.ts`, `.d.mts` and `.d.cts` files are not indexed (they declare types and contain no
+  implementation); directories named `generated` are skipped too. Node-RED returned to 5,787 units.
+- **Conclusion:** vendored declaration files are pure noise for code search; index only files with
+  implementations.
+
+### E10. Chunk-repair variants on Node-RED
+
+- **Expected (Sol, Astra, Opus):** merging tiny fragments and adding the parent signature to split pieces would
+  help by 0 to +0.04 MRR, with a warning that merging must not swallow one-line registration units.
+- **Setup:** `min_chars` merges statement groups under N non-blank characters into a contiguous neighbour;
+  `signature_header` adds the enclosing signature to statement groups cut from a large definition.
+  (These runs still included the `.d.ts` files, so absolute values are slightly lower than in E8.)
+- **Happened (MRR@10, lexical lane plus test scope; registration category in brackets):**
+
+  | Variant | Overall | Registration |
+  |---|---|---|
+  | no change | 0.838 | 0.929 |
+  | merge under 60 chars | 0.842 | 0.929 |
+  | merge under 150 chars | 0.807 | 0.607 |
+  | signature header only | 0.796 | 0.655 |
+  | merge 150 plus header | 0.773 | 0.488 |
+
+  Without `.d.ts` files (final): 0.848 and 0.852 for none and merge-60.
+- **Conclusion:** merge-60 is neutral to slightly positive (h17 moved from rank 3 to 2) and is now the default
+  index setting. The 150-character merge swallows the one-line `registerType` units and hurts registration. The
+  signature header lowered MRR in every combination (later pieces already carry path and qualified name) and
+  stays off.
+
+### E11. BrowserOS fresh-repository check
+
+- **Setup:** BrowserOS commit `0152e0a829` (TypeScript and TSX agent code, 1,592 files, about 11,900 units),
+  50 questions (30 dev, 20 holdout; behavioural, exact, test-seeking) written by a subagent from source only.
+- **Expected:** the Node-RED gains transfer (lexical lane +0.02 to +0.06, test scope helps).
+- **Happened (MRR@10):** dense 0.707; test scope 0.731 (7 queries better, none worse); lexical lane alone 0.720;
+  both 0.734 (9 better, 1 worse). Recall@10 rises from 0.88 to 0.96, almost all from test scope (about 390
+  test files). Test-seeking questions are unaffected (MRR 0.875). Exact MRR 0.804 to 0.873. Merge-60 changes
+  nothing here. The one regression, h07, is a behavioural question where the gate fired on the dotted name
+  `models.dev`.
+- **Conclusion:** test scope is the bigger win on a repo with many tests; the lexical lane is a small positive
+  here, not the +0.09 seen on Node-RED. The gate can misfire on prose that contains a dotted name.
+
+### E12. Gemma against jina on the repository pipeline
+
+- *Pending: filled in when the Gemma indexes finish (see the end of this file).*
+
+### E13. Incidents worth remembering
+
+- **Silent CPU fallback during indexing:** a first re-index hit a CUDA out-of-memory error on its first batch;
+  the resilient encoder demoted itself to the CPU for good and the build crawled. Fixed with a GPU batch of 8
+  and `expandable_segments`. Two GPU jobs must not run at once on this 4 GB card.
+- **Empty cache falsy:** an empty `VectorCache` was falsy through `__len__`, so it never filled until the check
+  became `is not None` (found by a test).
+- **Council reviews:** rounds on the plan, on quality boosts, on improvement ideas and on a LightGBM reranker.
+  Findings used: cut symbol boosts, call maps, agent loop and evidence bundles; add the gated lexical lane; no
+  reranker yet (see section 3).
+
+## 2. What changed in the pipeline, in plain words
+
+**Before (the first working version):** cut each file into function-sized pieces with tree-sitter, turn each
+piece into a vector with jina-code, store the vectors in an exact FAISS index, and answer a question by turning
+it into a vector and returning the closest pieces.
+
+**Now, indexing:**
+1. The chunker also reads TypeScript and TSX, and it skips type-declaration files (`.d.ts`) and generated code,
+   which only added noise.
+2. Tiny statement fragments under 60 non-blank characters (`var x;`, `})();`) are glued onto the neighbouring
+   piece when they sit right next to it, so they stop showing up as results on their own.
+3. Vectors are cached by the exact text that was embedded, so a changed unit is re-embedded and an unchanged
+   one never is. Documents are always embedded in fp32 on the GPU, offline.
+
+**Now, searching:**
+1. Test files are left out unless the question mentions tests ("which test covers ..."). The exclusion happens
+   before the top-k so they cannot take a slot.
+2. If the question contains something that looks like a code name or an exact message (a quoted string, a
+   snake_case or camelCase word, a dotted name) and that text really exists in the code, a keyword search
+   (BM25) also runs. The dense and keyword top-100 are merged by reciprocal rank fusion, so a unit that contains
+   the exact text rises to the top. Plain-language questions skip this and behave exactly as before.
+3. The query is still embedded on the CPU (fp32, or the optional int8 OpenVINO path with automatic fallback), so
+   serving stays CPU-only.
+
+**Unchanged on purpose:** the official benchmark path (a plain encoder with pre/post processing) has none of
+the repository additions, and the model, prompts, and exact FAISS search are the same.
+
+**Tried and left out:** signature header on split pieces (hurt), 150-character merge (hurt registration),
+a different embedding model (see E7 and E12), a LightGBM reranker (council advice below).
+
+## 3. Open decisions and advice on record
+
+- **LightGBM reranker:** all three reviewers said not now. The runtime cost is small (about 2 to 10 ms, an
+  estimate), but there is no trustworthy training data (jina saw the APPS-train labels, 50 repo queries are
+  exposed, and 50 queries only resolve large effects). Suggested next steps in order: a one-parameter blend of
+  normalised dense and BM25 scores in place of RRF, then a small linear model on a few scale-free features,
+  and LightGBM only with 200 or more labelled queries across at least two repositories.
+- **Fresh queries:** every Node-RED query has been seen; BrowserOS is the only unseen set and is now also used
+  for choices, so a third set is needed for any final claim.
+- **Embedding model:** see E7 and E12.
