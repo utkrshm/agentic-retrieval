@@ -1,0 +1,814 @@
+{
+ "repo": "node-red/node-red",
+ "commit": "cd05a9a38b797b790b2781619f85ee6ee129283c",
+ "created": "2026-10-04",
+ "how_made": "Queries written by reading sampled source units; gold = chunker units resolved mechanically (a unit, or every unit containing a grep hit for exact/config/registration queries). Written before any retrieval result was seen.",
+ "hit_rule": "a retrieved unit hits if it is in the same file and its line range overlaps a gold range",
+ "queries": [
+  {
+   "id": "d01",
+   "split": "dev",
+   "category": "behavioural",
+   "query": "encrypt the stored credentials using a random initialisation vector",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/runtime/lib/nodes/credentials.js",
+     "start": 42,
+     "end": 46,
+     "qualname": "encryptCredentials"
+    }
+   ]
+  },
+  {
+   "id": "d02",
+   "split": "dev",
+   "category": "behavioural",
+   "query": "save a file atomically by writing a temporary file and renaming it into place",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/runtime/lib/nodes/context/localfilesystem.js",
+     "start": 140,
+     "end": 147,
+     "qualname": "writeFileAtomic"
+    }
+   ]
+  },
+  {
+   "id": "d03",
+   "split": "dev",
+   "category": "behavioural",
+   "query": "remove stored context data that belongs to nodes no longer present in the running flows",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/runtime/lib/nodes/context/memory.js",
+     "start": 155,
+     "end": 165,
+     "qualname": "Memory.prototype.clean"
+    },
+    {
+     "path": "packages/node_modules/@node-red/runtime/lib/nodes/context/index.js",
+     "start": 585,
+     "end": 619,
+     "qualname": "clean"
+    }
+   ]
+  },
+  {
+   "id": "d04",
+   "split": "dev",
+   "category": "behavioural",
+   "query": "convert a typed property value such as string, number, json, regular expression, date or buffer into a real value",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/util/lib/util.js",
+     "start": 628,
+     "end": 691,
+     "qualname": "evaluateNodeProperty"
+    }
+   ]
+  },
+  {
+   "id": "d05",
+   "split": "dev",
+   "category": "behavioural",
+   "query": "load the translation catalog for a language and reject invalid language codes",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/util/lib/i18n.js",
+     "start": 189,
+     "end": 212,
+     "qualname": "getCatalog"
+    }
+   ]
+  },
+  {
+   "id": "d06",
+   "split": "dev",
+   "category": "behavioural",
+   "query": "find node module files on disk and prefer locally installed modules over global ones",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/registry/lib/localfilesystem.js",
+     "start": 395,
+     "end": 449,
+     "qualname": "getNodeFiles"
+    }
+   ]
+  },
+  {
+   "id": "d07",
+   "split": "dev",
+   "category": "behavioural",
+   "query": "kill a running child process when the incoming message asks for it",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/nodes/core/function/90-exec.js",
+     "start": 50,
+     "end": 93,
+     "qualname": "module.exports.ExecNode"
+    }
+   ]
+  },
+  {
+   "id": "d08",
+   "split": "dev",
+   "category": "behavioural",
+   "query": "add custom headers to an outgoing HTTP request, taking names and values from message properties",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/nodes/core/network/21-httprequest.js",
+     "start": 332,
+     "end": 381,
+     "qualname": "module.exports.HTTPRequest"
+    }
+   ]
+  },
+  {
+   "id": "d09",
+   "split": "dev",
+   "category": "behavioural",
+   "query": "repeat a message at a fixed interval until it is reset",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/nodes/core/function/89-trigger.js",
+     "start": 184,
+     "end": 201,
+     "qualname": "module.exports.TriggerNode.processMessage"
+    }
+   ]
+  },
+  {
+   "id": "d10",
+   "split": "dev",
+   "category": "behavioural",
+   "query": "when reading a file fails, send an error message that has no payload",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/nodes/core/storage/10-file.js",
+     "start": 404,
+     "end": 447,
+     "qualname": "module.exports.FileInNode.processMsg2"
+    }
+   ]
+  },
+  {
+   "id": "d11",
+   "split": "dev",
+   "category": "behavioural",
+   "query": "close all websocket connections whose login session has expired",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/editor-api/lib/editor/comms.js",
+     "start": 50,
+     "end": 57,
+     "qualname": "handleSessionExpiry"
+    }
+   ]
+  },
+  {
+   "id": "d12",
+   "split": "dev",
+   "category": "behavioural",
+   "query": "generate a random secret for the short-lived login session store",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/editor-api/lib/auth/index.js",
+     "start": 171,
+     "end": 203,
+     "qualname": "genericStrategy"
+    }
+   ]
+  },
+  {
+   "id": "d13",
+   "split": "dev",
+   "category": "behavioural",
+   "query": "name a newly created subflow with the next free number",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/editor-client/src/js/ui/subflow.js",
+     "start": 593,
+     "end": 623,
+     "qualname": "createSubflow"
+    }
+   ]
+  },
+  {
+   "id": "d14",
+   "split": "dev",
+   "category": "behavioural",
+   "query": "check that pasted flow JSON is an array before importing it",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/editor-client/src/js/ui/clipboard.js",
+     "start": 327,
+     "end": 349,
+     "qualname": "validateFlowString"
+    }
+   ]
+  },
+  {
+   "id": "d15",
+   "split": "dev",
+   "category": "behavioural",
+   "query": "wire the outputs of a subflow instance to the nodes connected to it",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/runtime/lib/flows/Subflow.js",
+     "start": 243,
+     "end": 287,
+     "qualname": "Subflow.start.this.node.updateWires"
+    }
+   ]
+  },
+  {
+   "id": "d16",
+   "split": "dev",
+   "category": "behavioural",
+   "query": "check that the value of a typed input is one of its allowed options",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/editor-client/src/js/ui/common/typedInput.js",
+     "start": 694,
+     "end": 731,
+     "qualname": "isOptionValueValid"
+    }
+   ]
+  },
+  {
+   "id": "d17",
+   "split": "dev",
+   "category": "behavioural",
+   "query": "throw an error when asked to operate on a project other than the active one",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/runtime/lib/storage/localfilesystem/projects/index.js",
+     "start": 267,
+     "end": 272,
+     "qualname": "checkActiveProject"
+    }
+   ]
+  },
+  {
+   "id": "d18",
+   "split": "dev",
+   "category": "exact",
+   "query": "which code uses ensureRuntimeStarted",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/editor-api/lib/editor/index.js",
+     "start": 31,
+     "end": 40,
+     "qualname": "ensureRuntimeStarted"
+    },
+    {
+     "path": "packages/node_modules/@node-red/editor-api/lib/editor/index.js",
+     "start": 42,
+     "end": 100,
+     "qualname": ""
+    }
+   ]
+  },
+  {
+   "id": "d19",
+   "split": "dev",
+   "category": "exact",
+   "query": "where is handleSessionExpiry defined and called",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/editor-api/lib/editor/comms.js",
+     "start": 39,
+     "end": 49,
+     "qualname": "init"
+    },
+    {
+     "path": "packages/node_modules/@node-red/editor-api/lib/editor/comms.js",
+     "start": 50,
+     "end": 57,
+     "qualname": "handleSessionExpiry"
+    }
+   ]
+  },
+  {
+   "id": "d20",
+   "split": "dev",
+   "category": "exact",
+   "query": "where is writeFileAtomic used",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/runtime/lib/nodes/context/localfilesystem.js",
+     "start": 140,
+     "end": 147,
+     "qualname": "writeFileAtomic"
+    },
+    {
+     "path": "packages/node_modules/@node-red/runtime/lib/nodes/context/localfilesystem.js",
+     "start": 206,
+     "end": 232,
+     "qualname": "LocalFileSystem.prototype.open"
+    },
+    {
+     "path": "packages/node_modules/@node-red/runtime/lib/nodes/context/localfilesystem.js",
+     "start": 299,
+     "end": 355,
+     "qualname": "LocalFileSystem.prototype.set"
+    }
+   ]
+  },
+  {
+   "id": "d21",
+   "split": "dev",
+   "category": "exact",
+   "query": "where is encryptCredentials called",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/runtime/lib/nodes/credentials.js",
+     "start": 42,
+     "end": 46,
+     "qualname": "encryptCredentials"
+    },
+    {
+     "path": "packages/node_modules/@node-red/runtime/lib/nodes/credentials.js",
+     "start": 469,
+     "end": 494,
+     "qualname": ""
+    }
+   ]
+  },
+  {
+   "id": "d22",
+   "split": "dev",
+   "category": "exact",
+   "query": "where is the express-session MemoryStore created for the editor login",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/editor-api/lib/auth/index.js",
+     "start": 171,
+     "end": 203,
+     "qualname": "genericStrategy"
+    }
+   ]
+  },
+  {
+   "id": "d23",
+   "split": "dev",
+   "category": "config",
+   "query": "where is the httpAdminCookieOptions setting applied",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/editor-api/lib/auth/index.js",
+     "start": 171,
+     "end": 203,
+     "qualname": "genericStrategy"
+    }
+   ]
+  },
+  {
+   "id": "d24",
+   "split": "dev",
+   "category": "config",
+   "query": "where is the disableNodePathScan setting honoured",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/registry/lib/loader.js",
+     "start": 36,
+     "end": 45,
+     "qualname": "load"
+    },
+    {
+     "path": "packages/node_modules/@node-red/registry/lib/localfilesystem.js",
+     "start": 1,
+     "end": 31,
+     "qualname": ""
+    },
+    {
+     "path": "packages/node_modules/@node-red/registry/lib/localfilesystem.js",
+     "start": 395,
+     "end": 449,
+     "qualname": "getNodeFiles"
+    }
+   ]
+  },
+  {
+   "id": "d25",
+   "split": "dev",
+   "category": "config",
+   "query": "where is the nodeMessageBufferMaxLength setting read",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/nodes/core/function/10-switch.js",
+     "start": 84,
+     "end": 95,
+     "qualname": "module.exports.getMaxKeptCount"
+    },
+    {
+     "path": "packages/node_modules/@node-red/nodes/core/function/89-delay.js",
+     "start": 25,
+     "end": 36,
+     "qualname": "module.exports.maxKeptMsgsCount"
+    },
+    {
+     "path": "packages/node_modules/@node-red/nodes/core/sequence/17-split.js",
+     "start": 282,
+     "end": 293,
+     "qualname": "module.exports.maxKeptMsgsCount"
+    },
+    {
+     "path": "packages/node_modules/@node-red/nodes/core/sequence/18-sort.js",
+     "start": 22,
+     "end": 33,
+     "qualname": "module.exports.max_kept_msgs_count"
+    },
+    {
+     "path": "packages/node_modules/@node-red/nodes/core/sequence/19-batch.js",
+     "start": 22,
+     "end": 33,
+     "qualname": "module.exports.max_kept_msgs_count"
+    }
+   ]
+  },
+  {
+   "id": "d26",
+   "split": "dev",
+   "category": "config",
+   "query": "where is the editorTheme projects enabled option checked when the projects storage starts",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/runtime/lib/storage/localfilesystem/projects/index.js",
+     "start": 44,
+     "end": 94,
+     "qualname": "init"
+    }
+   ]
+  },
+  {
+   "id": "d27",
+   "split": "dev",
+   "category": "registration",
+   "query": "where is the debug node type registered",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/nodes/core/common/21-debug.js",
+     "start": 216,
+     "end": 225,
+     "qualname": "module.exports"
+    }
+   ]
+  },
+  {
+   "id": "d28",
+   "split": "dev",
+   "category": "registration",
+   "query": "where is the trigger node registered with the runtime",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/nodes/core/function/89-trigger.js",
+     "start": 304,
+     "end": 304,
+     "qualname": "module.exports"
+    }
+   ]
+  },
+  {
+   "id": "d29",
+   "split": "dev",
+   "category": "registration",
+   "query": "where is the csv node type registered",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/nodes/core/parsers/70-CSV.js",
+     "start": 691,
+     "end": 691,
+     "qualname": "module.exports"
+    }
+   ]
+  },
+  {
+   "id": "d30",
+   "split": "dev",
+   "category": "registration",
+   "query": "where is the switch node type registered",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/nodes/core/function/10-switch.js",
+     "start": 525,
+     "end": 525,
+     "qualname": "module.exports"
+    }
+   ]
+  },
+  {
+   "id": "h01",
+   "split": "holdout",
+   "category": "behavioural",
+   "query": "stop the user from deleting the project that is currently active",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/runtime/lib/storage/localfilesystem/projects/index.js",
+     "start": 253,
+     "end": 265,
+     "qualname": "deleteProject"
+    }
+   ]
+  },
+  {
+   "id": "h02",
+   "split": "holdout",
+   "category": "behavioural",
+   "query": "work out which node types used by the flows are not installed",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/runtime/lib/flows/index.js",
+     "start": 542,
+     "end": 559,
+     "qualname": "updateMissingTypes"
+    }
+   ]
+  },
+  {
+   "id": "h03",
+   "split": "holdout",
+   "category": "behavioural",
+   "query": "return the Node-RED version and flag it when running from a git checkout",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/runtime/lib/index.js",
+     "start": 115,
+     "end": 127,
+     "qualname": "getVersion"
+    }
+   ]
+  },
+  {
+   "id": "h04",
+   "split": "holdout",
+   "category": "behavioural",
+   "query": "record which nodes use each shared configuration node while parsing the flow configuration",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/runtime/lib/flows/util.js",
+     "start": 364,
+     "end": 391,
+     "qualname": "parseConfig"
+    }
+   ]
+  },
+  {
+   "id": "h05",
+   "split": "holdout",
+   "category": "behavioural",
+   "query": "read a nested property from a message using a dotted path expression",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/util/lib/util.js",
+     "start": 403,
+     "end": 433,
+     "qualname": "getObjectProperty"
+    },
+    {
+     "path": "packages/node_modules/@node-red/util/lib/util.js",
+     "start": 384,
+     "end": 401,
+     "qualname": "getMessageProperty"
+    }
+   ]
+  },
+  {
+   "id": "h06",
+   "split": "holdout",
+   "category": "behavioural",
+   "query": "create the install directory for external modules if it is missing",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/registry/lib/externalModules.js",
+     "start": 224,
+     "end": 240,
+     "qualname": "ensureModuleDir"
+    }
+   ]
+  },
+  {
+   "id": "h07",
+   "split": "holdout",
+   "category": "behavioural",
+   "query": "only forward a grouped set of messages once every part of the group has arrived",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/nodes/core/function/10-switch.js",
+     "start": 416,
+     "end": 442,
+     "qualname": "module.exports.SwitchNode.sendGroupMessages"
+    }
+   ]
+  },
+  {
+   "id": "h08",
+   "split": "holdout",
+   "category": "behavioural",
+   "query": "reject a websocket client that lacks permission to read status",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/editor-api/lib/editor/comms.js",
+     "start": 108,
+     "end": 126,
+     "qualname": "CommsConnection.completeConnection"
+    }
+   ]
+  },
+  {
+   "id": "h09",
+   "split": "holdout",
+   "category": "behavioural",
+   "query": "combine the default keyboard shortcuts with a theme's custom shortcuts",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/editor-client/src/js/ui/keyboard.js",
+     "start": 88,
+     "end": 134,
+     "qualname": "mergeKeymaps"
+    }
+   ]
+  },
+  {
+   "id": "h10",
+   "split": "holdout",
+   "category": "behavioural",
+   "query": "list the keys stored in the in-memory context for a scope",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/runtime/lib/nodes/context/memory.js",
+     "start": 119,
+     "end": 148,
+     "qualname": "Memory.prototype.keys"
+    }
+   ]
+  },
+  {
+   "id": "h11",
+   "split": "holdout",
+   "category": "behavioural",
+   "query": "show a keyboard shortcut with symbols on a Mac",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/editor-client/src/js/ui/keyboard.js",
+     "start": 447,
+     "end": 459,
+     "qualname": "formatKey"
+    }
+   ]
+  },
+  {
+   "id": "h12",
+   "split": "holdout",
+   "category": "exact",
+   "query": "where is the cannot_delete_active_project error code set",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/runtime/lib/storage/localfilesystem/projects/index.js",
+     "start": 253,
+     "end": 265,
+     "qualname": "deleteProject"
+    }
+   ]
+  },
+  {
+   "id": "h13",
+   "split": "holdout",
+   "category": "exact",
+   "query": "where is the install_not_allowed error code raised",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/registry/lib/externalModules.js",
+     "start": 166,
+     "end": 221,
+     "qualname": "checkFlowDependencies"
+    },
+    {
+     "path": "packages/node_modules/@node-red/registry/lib/externalModules.js",
+     "start": 244,
+     "end": 269,
+     "qualname": "installModule"
+    },
+    {
+     "path": "packages/node_modules/@node-red/registry/lib/installer.js",
+     "start": 142,
+     "end": 204,
+     "qualname": "installModule"
+    }
+   ]
+  },
+  {
+   "id": "h14",
+   "split": "holdout",
+   "category": "exact",
+   "query": "where is the \"Invalid SSH Key name\" error thrown",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/runtime/lib/storage/localfilesystem/projects/ssh/index.js",
+     "start": 103,
+     "end": 126,
+     "qualname": "generateSSHKey"
+    }
+   ]
+  },
+  {
+   "id": "h15",
+   "split": "holdout",
+   "category": "exact",
+   "query": "where is the \"Unrecognised id\" error thrown for node sets",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/registry/lib/registry.js",
+     "start": 239,
+     "end": 262,
+     "qualname": "removeNode"
+    },
+    {
+     "path": "packages/node_modules/@node-red/registry/lib/registry.js",
+     "start": 572,
+     "end": 594,
+     "qualname": "enableNodeSet"
+    },
+    {
+     "path": "packages/node_modules/@node-red/registry/lib/registry.js",
+     "start": 596,
+     "end": 617,
+     "qualname": "disableNodeSet"
+    }
+   ]
+  },
+  {
+   "id": "h16",
+   "split": "holdout",
+   "category": "config",
+   "query": "where does the runtime load the contextStorage setting",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/runtime/lib/nodes/context/index.js",
+     "start": 70,
+     "end": 100,
+     "qualname": "load"
+    }
+   ]
+  },
+  {
+   "id": "h17",
+   "split": "holdout",
+   "category": "config",
+   "query": "where does the MQTT broker node default the keepalive to 60 seconds",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/nodes/core/network/10-mqtt.js",
+     "start": 605,
+     "end": 619,
+     "qualname": "module.exports.MQTTBrokerNode.node.setOptions"
+    }
+   ]
+  },
+  {
+   "id": "h18",
+   "split": "holdout",
+   "category": "registration",
+   "query": "where is the HTTP request node type registered",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/nodes/core/network/21-httprequest.js",
+     "start": 757,
+     "end": 762,
+     "qualname": "module.exports"
+    }
+   ]
+  },
+  {
+   "id": "h19",
+   "split": "holdout",
+   "category": "registration",
+   "query": "where is the exec node type registered",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/nodes/core/function/90-exec.js",
+     "start": 218,
+     "end": 218,
+     "qualname": "module.exports"
+    }
+   ]
+  },
+  {
+   "id": "h20",
+   "split": "holdout",
+   "category": "registration",
+   "query": "where is the mqtt in node type registered",
+   "gold": [
+    {
+     "path": "packages/node_modules/@node-red/nodes/core/network/10-mqtt.js",
+     "start": 1444,
+     "end": 1445,
+     "qualname": "module.exports"
+    }
+   ]
+  }
+ ],
+ "label_fixes": [
+  "2026-10-04 (after results were seen): added a second valid answer to h05 (getMessageProperty, which strips 'msg.' and reads the property from the message) and to d03 (the context manager's clean(), which deletes contexts of nodes no longer in the flows). Found by reading the top-ranked wrong answers; both are legitimate matches for the query wording."
+ ]
+}

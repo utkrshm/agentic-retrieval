@@ -1,3 +1,8 @@
+*.py[cod]
+.states
+*.db
+assets/external/
+.web
 # Python-generated files
 __pycache__/
 *.py[oc]
@@ -8,3 +13,12 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Local caches, exported models, agent briefings
+.cache/
+
+# Benchmark outputs (MTEB result JSONs)
+outputs/
+eval/BrowserOS/
+
+reflex.log
