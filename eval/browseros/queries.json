@@ -1,0 +1,763 @@
+{
+  "repo": "browseros-ai/BrowserOS",
+  "commit": "0152e0a829b36921787196b66a13d1025bc850be",
+  "created": "2026-10-04",
+  "how_made": "Questions written by reading sampled source; gold = line ranges of the answering code. Written before any retrieval result was seen.",
+  "hit_rule": "a retrieved unit hits if it is in the same file and its line range overlaps a gold range",
+  "queries": [
+    {
+      "id": "d01",
+      "split": "dev",
+      "category": "exact",
+      "query": "What does resolveTimeWaitMs do when the requested pause exceeds the cap for for=\"time\" waits?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/packages/browser-mcp/src/tools/wait.ts",
+          "start": 111,
+          "end": 125,
+          "qualname": "resolveTimeWaitMs"
+        }
+      ]
+    },
+    {
+      "id": "d02",
+      "split": "dev",
+      "category": "behavioural",
+      "query": "How are overlapping screenshot captures on the same page serialized so annotation overlays do not collide?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/packages/browser-core/src/core/screenshot-queue.ts",
+          "start": 6,
+          "end": 27,
+          "qualname": "runExclusiveScreenshotCapture"
+        }
+      ]
+    },
+    {
+      "id": "d03",
+      "split": "dev",
+      "category": "behavioural",
+      "query": "How are API keys, bearer tokens, JWTs and passwords scrubbed from upstream provider error bodies before they are shown to the user?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/agent/chat-error.ts",
+          "start": 51,
+          "end": 77,
+          "qualname": "SECRET_PATTERNS"
+        },
+        {
+          "path": "packages/browseros-agent/apps/server/src/agent/chat-error.ts",
+          "start": 79,
+          "end": 84,
+          "qualname": "redact"
+        }
+      ]
+    },
+    {
+      "id": "d04",
+      "split": "dev",
+      "category": "test",
+      "query": "Which test verifies that a cargo run that fails to compile is still reported as a failure in the JUnit counts?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/scripts/run-cargo-test.test.ts",
+          "start": 52,
+          "end": 56,
+          "qualname": "forces a failure when cargo fails before any test result (compile error)"
+        }
+      ]
+    },
+    {
+      "id": "d05",
+      "split": "dev",
+      "category": "behavioural",
+      "query": "How are errors coming back from the ACP agent runtime classified into agent-missing, authentication or timeout errors?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/packages/acpx-ai-provider/src/errors.ts",
+          "start": 71,
+          "end": 88,
+          "qualname": "fromRuntimeError"
+        }
+      ]
+    },
+    {
+      "id": "d06",
+      "split": "dev",
+      "category": "test",
+      "query": "Which test checks that the file edit tool keeps a UTF-8 byte-order mark at the start of the file?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/tests/tools/filesystem/edit.test.ts",
+          "start": 117,
+          "end": 128,
+          "qualname": "preserves UTF-8 BOM"
+        }
+      ]
+    },
+    {
+      "id": "d07",
+      "split": "dev",
+      "category": "behavioural",
+      "query": "How are agent MCP config files written so a crash midway never leaves a half-written file behind?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/packages/agent-mcp-manager/src/_internal/atomic-write.ts",
+          "start": 9,
+          "end": 27,
+          "qualname": "atomicWriteFile"
+        }
+      ]
+    },
+    {
+      "id": "d08",
+      "split": "dev",
+      "category": "behavioural",
+      "query": "How does the server stop one recurring error from flooding Sentry with events, and how are suppressed events counted?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/lib/sentry-throttle.ts",
+          "start": 78,
+          "end": 136,
+          "qualname": "createEventBudget"
+        }
+      ]
+    },
+    {
+      "id": "d09",
+      "split": "dev",
+      "category": "behavioural",
+      "query": "If the user sends a chat message before the provider list has loaded or while a conversation is being restored, is it sent, queued, refused or dropped?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/app/modules/chat/chat-send-decision.ts",
+          "start": 25,
+          "end": 32,
+          "qualname": "decideChatSend"
+        }
+      ]
+    },
+    {
+      "id": "d10",
+      "split": "dev",
+      "category": "behavioural",
+      "query": "How does the release build make zip archives reproducible by pinning file modification times?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/packages/build-server-tools/src/archive.ts",
+          "start": 180,
+          "end": 193,
+          "qualname": "normalizeArchiveTimestamps"
+        }
+      ]
+    },
+    {
+      "id": "d11",
+      "split": "dev",
+      "category": "exact",
+      "query": "Where does the recordings relay check recordingIngestVersion to decide whether the server can accept session recordings?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/claw-app/modules/recorder/recordings-relay.ts",
+          "start": 209,
+          "end": 242,
+          "qualname": "discoverCapability"
+        },
+        {
+          "path": "packages/browseros-agent/apps/claw-app/modules/recorder/recordings-relay.ts",
+          "start": 329,
+          "end": 388,
+          "qualname": "drain"
+        }
+      ]
+    },
+    {
+      "id": "d12",
+      "split": "dev",
+      "category": "exact",
+      "query": "Where is the 'Unknown key:' error raised when a keyboard press names an unsupported key?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/packages/browser-core/src/core/input/keyboard.ts",
+          "start": 75,
+          "end": 84,
+          "qualname": "validateKey"
+        }
+      ]
+    },
+    {
+      "id": "d13",
+      "split": "dev",
+      "category": "exact",
+      "query": "Where is 'Invalid or expired OAuth state' thrown during the OAuth callback?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/lib/clients/oauth/token-manager.ts",
+          "start": 129,
+          "end": 194,
+          "qualname": "OAuthTokenManager.handleCallback"
+        }
+      ]
+    },
+    {
+      "id": "d14",
+      "split": "dev",
+      "category": "behavioural",
+      "query": "How does the side panel avoid running out of memory from base64 screenshots kept in tool results across a long chat?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/app/modules/chat/tool-output-strip.ts",
+          "start": 68,
+          "end": 81,
+          "qualname": "stripImageToolOutputs"
+        },
+        {
+          "path": "packages/browseros-agent/apps/app/modules/chat/tool-output-strip.ts",
+          "start": 22,
+          "end": 37,
+          "qualname": "stripImagesFromOutput"
+        }
+      ]
+    },
+    {
+      "id": "d15",
+      "split": "dev",
+      "category": "exact",
+      "query": "Where is the error 'Tab ... not found after creation' thrown when opening a new page?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/packages/browser-core/src/core/pages.ts",
+          "start": 187,
+          "end": 237,
+          "qualname": "PageManager.newPage"
+        }
+      ]
+    },
+    {
+      "id": "d16",
+      "split": "dev",
+      "category": "exact",
+      "query": "What does stripMarkdownFences return when the model's JSON output has an opening fence but no closing fence?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/packages/acpx-ai-provider/src/json-output.ts",
+          "start": 21,
+          "end": 28,
+          "qualname": "stripMarkdownFences"
+        }
+      ]
+    },
+    {
+      "id": "d17",
+      "split": "dev",
+      "category": "exact",
+      "query": "How does computeBudget handle a zero, negative or NaN context window when deriving the compaction threshold?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/agent/compaction.ts",
+          "start": 47,
+          "end": 61,
+          "qualname": "computeBudget"
+        }
+      ]
+    },
+    {
+      "id": "d18",
+      "split": "dev",
+      "category": "behavioural",
+      "query": "How does the page registry reconcile its page ids with the browser's live tabs and forget tabs that were closed?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/packages/browser-core/src/core/pages.ts",
+          "start": 59,
+          "end": 97,
+          "qualname": "PageManager.list"
+        }
+      ]
+    },
+    {
+      "id": "d19",
+      "split": "dev",
+      "category": "behavioural",
+      "query": "What happens to earlier tool calls in the message history when an MCP server disconnects and its tools are no longer in the toolset?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/agent/message-validation.ts",
+          "start": 84,
+          "end": 103,
+          "qualname": "sanitizeMessagesForToolset"
+        }
+      ]
+    },
+    {
+      "id": "d20",
+      "split": "dev",
+      "category": "exact",
+      "query": "Where is the 'Invalid target:' error produced when parsing the build target list?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/packages/build-server-tools/src/targets.ts",
+          "start": 45,
+          "end": 59,
+          "qualname": "resolveTargets"
+        }
+      ]
+    },
+    {
+      "id": "d21",
+      "split": "dev",
+      "category": "exact",
+      "query": "Where is the error 'Path is outside the selected workspace.' thrown?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/tools/filesystem/path-boundary.ts",
+          "start": 46,
+          "end": 50,
+          "qualname": "assertInsideWorkspace"
+        },
+        {
+          "path": "packages/browseros-agent/apps/server/src/tools/filesystem/path-boundary.ts",
+          "start": 56,
+          "end": 77,
+          "qualname": "findExistingParent"
+        }
+      ]
+    },
+    {
+      "id": "d22",
+      "split": "dev",
+      "category": "behavioural",
+      "query": "How does the server keep only the most recent runs of a scheduled job and delete the older run history?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/lib/schedules/run-store.ts",
+          "start": 76,
+          "end": 94,
+          "qualname": "prune"
+        }
+      ]
+    },
+    {
+      "id": "d23",
+      "split": "dev",
+      "category": "behavioural",
+      "query": "How does the server figure out whether a remote MCP server speaks streamable HTTP or the older SSE transport, and how long is that answer cached?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/lib/mcp-transport-detect.ts",
+          "start": 28,
+          "end": 102,
+          "qualname": "detectMcpTransport"
+        }
+      ]
+    },
+    {
+      "id": "d24",
+      "split": "dev",
+      "category": "behavioural",
+      "query": "How many thinking tokens does each reasoning effort level map to for providers that take an explicit thinking budget?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/agent/reasoning-config.ts",
+          "start": 68,
+          "end": 86,
+          "qualname": "toThinkingBudget"
+        }
+      ]
+    },
+    {
+      "id": "d25",
+      "split": "dev",
+      "category": "behavioural",
+      "query": "How does the server pull the real upstream error message out of OpenRouter's generic 'Provider returned error' responses while keeping SDK retries working?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/lib/openrouter-fetch.ts",
+          "start": 23,
+          "end": 67,
+          "qualname": "createOpenRouterCompatibleFetch"
+        }
+      ]
+    },
+    {
+      "id": "d26",
+      "split": "dev",
+      "category": "behavioural",
+      "query": "How does the agent shrink the conversation history when the prompt grows past the model's context window?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/agent/compaction.ts",
+          "start": 111,
+          "end": 203,
+          "qualname": "createCompactionPrepareStep"
+        },
+        {
+          "path": "packages/browseros-agent/apps/server/src/agent/compaction.ts",
+          "start": 76,
+          "end": 97,
+          "qualname": "dropOldestMessages"
+        }
+      ]
+    },
+    {
+      "id": "d27",
+      "split": "dev",
+      "category": "exact",
+      "query": "Where is the suggest_schedule tool defined, and what time does it default to when none is given?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/agent/nudge-tools.ts",
+          "start": 22,
+          "end": 55,
+          "qualname": "buildNudgeToolSet"
+        }
+      ]
+    },
+    {
+      "id": "d28",
+      "split": "dev",
+      "category": "behavioural",
+      "query": "What does the chat UI show when the provider's content filter blocks the reply and the assistant message is empty?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/app/modules/chat/content-filter-notice.ts",
+          "start": 20,
+          "end": 41,
+          "qualname": "addContentFilterNotice"
+        }
+      ]
+    },
+    {
+      "id": "d29",
+      "split": "dev",
+      "category": "behavioural",
+      "query": "How is text scraped from a web page fenced off so a malicious page cannot inject instructions into the model?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/packages/browser-mcp/src/tools/trust-boundary.ts",
+          "start": 11,
+          "end": 18,
+          "qualname": "wrapUntrusted"
+        }
+      ]
+    },
+    {
+      "id": "d30",
+      "split": "dev",
+      "category": "behavioural",
+      "query": "During the GitHub Copilot device-code login, how does the server poll for the token and react when told to slow down or when the code expires?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/lib/clients/oauth/token-manager.ts",
+          "start": 275,
+          "end": 367,
+          "qualname": "OAuthTokenManager.pollDeviceCode"
+        }
+      ]
+    },
+    {
+      "id": "h01",
+      "split": "holdout",
+      "category": "behavioural",
+      "query": "How does the file edit tool fall back when the text to replace does not match exactly because of indentation differences?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/tools/filesystem/edit.ts",
+          "start": 28,
+          "end": 64,
+          "qualname": "fuzzyReplace"
+        }
+      ]
+    },
+    {
+      "id": "h02",
+      "split": "holdout",
+      "category": "exact",
+      "query": "Where does the server throw 'BrowserOS server disables native addon loading in compiled production builds'?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/lib/native-addon-guard.ts",
+          "start": 9,
+          "end": 19,
+          "qualname": "installNativeAddonGuard"
+        },
+        {
+          "path": "packages/browseros-agent/apps/server/src/lib/native-addon-guard.ts",
+          "start": 1,
+          "end": 2,
+          "qualname": ""
+        }
+      ]
+    },
+    {
+      "id": "h03",
+      "split": "holdout",
+      "category": "behavioural",
+      "query": "How does the page snapshot diff keep only changed lines plus a little surrounding context and elide the rest?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/packages/browser-core/src/core/snapshot/diff.ts",
+          "start": 224,
+          "end": 243,
+          "qualname": "collapse"
+        }
+      ]
+    },
+    {
+      "id": "h04",
+      "split": "holdout",
+      "category": "behavioural",
+      "query": "When the session-recording buffer hits its cap, which events are dropped, and how are oversized events handled?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/claw-app/modules/recorder/recorder-buffer.ts",
+          "start": 86,
+          "end": 111,
+          "qualname": "appendLine"
+        }
+      ]
+    },
+    {
+      "id": "h05",
+      "split": "holdout",
+      "category": "exact",
+      "query": "Where is the 'Command timed out after' message produced for the filesystem_bash tool?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/tools/filesystem/bash.ts",
+          "start": 18,
+          "end": 84,
+          "qualname": "createBashTool"
+        }
+      ]
+    },
+    {
+      "id": "h06",
+      "split": "holdout",
+      "category": "exact",
+      "query": "Where is FEATURE_CONFIG defined with the minimum BrowserOS and server versions for each feature?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/app/lib/browseros/capabilities.ts",
+          "start": 28,
+          "end": 36,
+          "qualname": "FEATURE_CONFIG"
+        }
+      ]
+    },
+    {
+      "id": "h07",
+      "split": "holdout",
+      "category": "behavioural",
+      "query": "When generating the bundled model catalogue from models.dev, which models are skipped (deprecated, embedding, image or audio models, and so on)?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/scripts/generate-models.ts",
+          "start": 190,
+          "end": 221,
+          "qualname": "transformModel"
+        },
+        {
+          "path": "packages/browseros-agent/scripts/generate-models.ts",
+          "start": 181,
+          "end": 187,
+          "qualname": "isNonChatModelClass"
+        }
+      ]
+    },
+    {
+      "id": "h08",
+      "split": "holdout",
+      "category": "behavioural",
+      "query": "When the offline recording outbox exceeds its byte budget, which queued batches get evicted?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/claw-app/modules/recorder/recordings-relay.ts",
+          "start": 176,
+          "end": 207,
+          "qualname": "enforceQueueBudget"
+        }
+      ]
+    },
+    {
+      "id": "h09",
+      "split": "holdout",
+      "category": "exact",
+      "query": "Where is the 'Invalid installation identity file' error thrown?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/lib/installation-id.ts",
+          "start": 63,
+          "end": 82,
+          "qualname": "readInstallationId"
+        }
+      ]
+    },
+    {
+      "id": "h10",
+      "split": "holdout",
+      "category": "behavioural",
+      "query": "How does the server find the user's login-shell PATH so spawned coding agents can locate CLI tools on macOS and Linux?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/lib/agents/host-acp/resolve-login-path.ts",
+          "start": 45,
+          "end": 61,
+          "qualname": "computeLoginShellPath"
+        },
+        {
+          "path": "packages/browseros-agent/apps/server/src/lib/agents/host-acp/resolve-login-path.ts",
+          "start": 30,
+          "end": 38,
+          "qualname": "resolveLoginShellPath"
+        }
+      ]
+    },
+    {
+      "id": "h11",
+      "split": "holdout",
+      "category": "behavioural",
+      "query": "How does the connected-apps integration avoid creating a new Strata server on every request for the same set of apps?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/api/services/klavis/strata-cache.ts",
+          "start": 37,
+          "end": 76,
+          "qualname": "KlavisStrataCache.getOrFetch"
+        }
+      ]
+    },
+    {
+      "id": "h12",
+      "split": "holdout",
+      "category": "behavioural",
+      "query": "How is a custom agent's command string split into arguments while honoring quotes and keeping Windows backslashes intact?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/lib/agents/host-acp/parse-command.ts",
+          "start": 14,
+          "end": 51,
+          "qualname": "splitCommandLine"
+        }
+      ]
+    },
+    {
+      "id": "h13",
+      "split": "holdout",
+      "category": "behavioural",
+      "query": "How are large image attachments downscaled and re-encoded before being sent in a chat message?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/app/lib/attachments.ts",
+          "start": 250,
+          "end": 302,
+          "qualname": "compressImageIfNeeded"
+        }
+      ]
+    },
+    {
+      "id": "h14",
+      "split": "holdout",
+      "category": "exact",
+      "query": "Where is UnsupportedTransportError thrown when an agent does not support the requested MCP transport?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/packages/agent-mcp-manager/src/planner/planner.ts",
+          "start": 418,
+          "end": 435,
+          "qualname": "ensureTransportSupported"
+        }
+      ]
+    },
+    {
+      "id": "h15",
+      "split": "holdout",
+      "category": "behavioural",
+      "query": "How does the server clean up old per-session directories that are past the retention period?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/lib/browseros-dir.ts",
+          "start": 116,
+          "end": 144,
+          "qualname": "cleanOldSessions"
+        }
+      ]
+    },
+    {
+      "id": "h16",
+      "split": "holdout",
+      "category": "behavioural",
+      "query": "How does the MCP config manager decide whether a coding agent is installed before writing its config file?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/packages/agent-mcp-manager/src/planner/planner.ts",
+          "start": 451,
+          "end": 469,
+          "qualname": "ensureAgentInstalled"
+        }
+      ]
+    },
+    {
+      "id": "h17",
+      "split": "holdout",
+      "category": "test",
+      "query": "Which test ensures Bedrock only enables extended thinking for Anthropic models?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/server/src/agent/reasoning-config.test.ts",
+          "start": 118,
+          "end": 135,
+          "qualname": "BEDROCK enables thinking only for anthropic models"
+        }
+      ]
+    },
+    {
+      "id": "h18",
+      "split": "holdout",
+      "category": "test",
+      "query": "Which test checks that queued chat messages are sent one at a time, each waiting for the previous turn to finish?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/app/modules/chat/chat-send-decision.test.ts",
+          "start": 76,
+          "end": 90,
+          "qualname": "waits for each turn before starting the next"
+        }
+      ]
+    },
+    {
+      "id": "h19",
+      "split": "holdout",
+      "category": "exact",
+      "query": "Where is COMPACTION_PRUNE_KEEP_RECENT_MESSAGES defined?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/packages/shared/src/constants/limits.ts",
+          "start": 13,
+          "end": 29,
+          "qualname": "AGENT_LIMITS"
+        }
+      ]
+    },
+    {
+      "id": "h20",
+      "split": "holdout",
+      "category": "exact",
+      "query": "Where is buildCanonicalMcpCliCommand defined to produce the 'claude mcp add' command?",
+      "gold": [
+        {
+          "path": "packages/browseros-agent/apps/claw-app/modules/api/mcp-endpoint.ts",
+          "start": 37,
+          "end": 40,
+          "qualname": "buildCanonicalMcpCliCommand"
+        },
+        {
+          "path": "packages/browseros-agent/apps/claw-onboard/src/modules/api/mcp-endpoint.ts",
+          "start": 62,
+          "end": 65,
+          "qualname": "buildCanonicalMcpCliCommand"
+        }
+      ]
+    }
+  ]
+}

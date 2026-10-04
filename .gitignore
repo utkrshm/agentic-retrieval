@@ -14,3 +14,4 @@ wheels/
 
 # Benchmark outputs (MTEB result JSONs)
 outputs/
+eval/BrowserOS/
