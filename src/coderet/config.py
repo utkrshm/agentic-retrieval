@@ -32,7 +32,31 @@ JINA_CODE = ModelSpec(
     ),
 )
 
-MODELS: dict[str, ModelSpec] = {JINA_CODE.key: JINA_CODE}
+# Comparison models for the AppsRetrieval head-to-head (scripts/run_mteb.py --model). Not used by the
+# repository pipeline: its OpenVINO export, probe and unit text are specific to jina-code.
+EMBEDDINGGEMMA = ModelSpec(
+    key="embeddinggemma-300m",
+    hf_id="google/embeddinggemma-300m",
+    revision="57c266a740f537b4dc058e1b0cda161fd15afa75",
+    query_prompt="task: code retrieval | query: ",
+    document_prompt="title: none | text: ",
+    max_seq_length=2048,
+    notes="Gated on Hugging Face. Comparison model only; pooling comes from the checkpoint's own config.",
+)
+
+QWEN3_06B = ModelSpec(
+    key="qwen3-0.6b",
+    hf_id="Qwen/Qwen3-Embedding-0.6B",
+    revision="97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
+    query_prompt=(
+        "Instruct: Given a code contest problem description, "
+        "retrieve relevant code that can help solve the problem\nQuery:"
+    ),
+    document_prompt="",
+    notes="Comparison model only; pooling comes from the checkpoint's own config.",
+)
+
+MODELS: dict[str, ModelSpec] = {m.key: m for m in (JINA_CODE, EMBEDDINGGEMMA, QWEN3_06B)}
 
 
 def get_model(key: str) -> ModelSpec:

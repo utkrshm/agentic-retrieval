@@ -17,7 +17,7 @@ from pathlib import Path
 import mteb
 import numpy as np
 
-from coderet.config import JINA_CODE, fingerprint
+from coderet.config import MODELS, JINA_CODE, fingerprint, get_model
 from coderet.embed import make_query_encoder
 from coderet.embed.backends import TorchBackend
 from coderet.mteb_adapters import PrePostPipelineEncoder
@@ -35,6 +35,8 @@ class SplitEmbedder:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--model", default=JINA_CODE.key, choices=sorted(MODELS),
+                    help="comparison models run with PyTorch fp32 only (--query-backend torch)")
     ap.add_argument("--out", type=Path, default=Path("outputs/appsretrieval_results.json"))
     ap.add_argument("--device", default="auto", choices=["auto", "cuda", "cpu"])
     ap.add_argument("--query-backend", default="torch", choices=["torch", "auto"],
@@ -45,16 +47,19 @@ def main() -> None:
 
     import torch
 
+    spec = get_model(args.model)
+    if spec is not JINA_CODE and args.query_backend != "torch":
+        raise SystemExit("the OpenVINO chain is exported for jina-code only; use --query-backend torch")
     device = "cuda" if args.device in ("auto", "cuda") and torch.cuda.is_available() else "cpu"
-    doc_backend = TorchBackend(JINA_CODE, device, batch_size=args.torch_batch)
+    doc_backend = TorchBackend(spec, device, batch_size=args.torch_batch)
     if args.query_backend == "torch":
         embedder, qname = doc_backend, doc_backend.name
     else:
         embedder, qname = SplitEmbedder(make_query_encoder(JINA_CODE), doc_backend), "chain"
-    rev = fingerprint(JINA_CODE, doc=doc_backend.name, queries=qname, precision="fp32 docs")
-    encoder = PrePostPipelineEncoder(embedder, JINA_CODE.key, revision=rev)
+    rev = fingerprint(spec, doc=doc_backend.name, queries=qname, precision="fp32 docs")
+    encoder = PrePostPipelineEncoder(embedder, spec.key, revision=rev)
 
-    print(f"model {JINA_CODE.hf_id} @ {JINA_CODE.revision[:8]} | docs: {doc_backend.name} | queries: {qname} | run {rev}")
+    print(f"model {spec.hf_id} @ {spec.revision[:8]} | docs: {doc_backend.name} | queries: {qname} | run {rev}")
     task = mteb.get_task("AppsRetrieval")  # Make sure you choose this task
     t0 = time.perf_counter()
     result = mteb.evaluate(encoder, [task], encode_kwargs={"batch_size": args.batch_size},
