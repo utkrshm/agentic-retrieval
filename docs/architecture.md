@@ -28,6 +28,9 @@ queries / documents --> coderet.embed.ResilientEncoder --> L2-normalised float32
                           documents:          PyTorch fp32 (GPU if available, else CPU)
                                                         |
                           coderet.mteb_adapters.PrePostPipelineEncoder --> mteb.evaluate(AppsRetrieval)
+
+units + vectors --> coderet.index.RepoIndex (FAISS flat inner product, one commit) --> top-k units with file:line
+                    vector cache key = hash(model revision + prompt + length limit + precision + exact embed text)
 ```
 
 | Module | What it does |
@@ -38,6 +41,9 @@ queries / documents --> coderet.embed.ResilientEncoder --> L2-normalised float32
 | `coderet/embed/export.py` | Exports the model to OpenVINO with optimum-intel, compresses weights to int8 with NNCF, and stores fp32 PyTorch reference vectors for the health probe under `.cache/openvino/`. |
 | `coderet/embed/probe.py` | Fixed startup health probe: finite, unit-norm, right dimension, semantic ordering on three triples, and cosine to the stored reference. |
 | `coderet/embed/resilient.py` | `ResilientEncoder`: activates the first backend that builds and passes the probe; on any error or invalid output at runtime it demotes that backend permanently and retries the same batch on the next one; raises `EncoderUnavailable` if all fail; records every decision in `events`. |
+| `coderet/index/cache.py` | `vector_key()` hashes the model revision, role prompt, length limit, precision and the exact embedded text (never the syntax-tree hash, which ignores comments and file paths); `VectorCache` persists vectors by that key so a re-index only embeds units whose text changed. |
+| `coderet/index/repo_index.py` | `RepoIndex`: chunks a checkout, embeds the units (fp32), builds an exact FAISS `IndexFlatIP` and saves/loads it (`meta.json`, `units.jsonl`, `vectors.npy`, `index.faiss`). One index describes one commit; there is no manifest yet. Identical code in two files stays two results. |
+| `coderet/eval/repo_queries.py` | The hit rule (same file, overlapping line range) and metrics (Recall@1/5/10, MRR@10, gold recall) for the labelled repository queries. |
 | `coderet/mteb_adapters/encoder.py` | `PrePostPipelineEncoder` (the class named in the theme-1 guidelines): `preprocess -> embed -> postprocess`, role derived from MTEB's `PromptType`. It only sees what MTEB passes in. |
 
 | Script | Purpose |
@@ -46,24 +52,29 @@ queries / documents --> coderet.embed.ResilientEncoder --> L2-normalised float32
 | `scripts/export_openvino.py` | One-off export (about 40 s, about 4 GB RAM). |
 | `scripts/bench_encoder.py` | Agreement with PyTorch and warm batch-1 latency per backend on real code units. |
 | `scripts/failure_drill.py` | Breaks the real exported models seven ways and checks that the encoder recovers. |
+| `scripts/index_repo.py` | Builds the FAISS index of a repository's current checkout (offline: fp32 on the GPU when there is one). |
+| `scripts/run_queries.py` | Runs the labelled queries against an index and logs the top-k units per query, hit flags, snippets, timings and metrics to JSON. |
 | `scripts/chunk_repo.py` | Chunks a repository and reports units, coverage, size distribution and parse errors; checks the span invariant. |
 
-Tests: `uv run pytest` (40 tests, no model downloads or GPU needed).
+Data: `eval/node-red/queries.json` holds 50 hand-labelled queries on Node-RED (30 dev, 20 holdout: behavioural 28,
+exact name 9, setting 6, registration 7), labelled at commit `cd05a9a38b`. They were written from sampled source
+units before any retrieval result was seen; gold is resolved mechanically from the chunker's units.
+
+Tests: `uv run pytest` (45 tests, no model downloads or GPU needed).
 
 ## Planned (not built)
 
 - `repo` and `library` input modes. In `library` mode each document is one unit with no tree-sitter
   (AppsRetrieval documents are whole programs ranked by document id; chunking them would break the
   mapping). In `repo` mode, tree-sitter units.
-- FAISS flat inner-product index, with the vector cache key `hash(model revision + prompt + exact embed text)`.
 - Per-commit JSON manifests (path, span, kind, qualname, vector key, content key). "As of commit X"
   rebuilds a small flat index from the manifest, so results are filtered before the top-k, never after.
 - Search across versions: search unique variants, group hits by `(path, kind, qualname)`, show the best
   variant with the others expandable, newest first.
 - Identifier-aware BM25 fused with dense scores by plain RRF, gated to queries that contain code-like
   tokens, kept only if it wins on a held-out set.
-- A hand-labelled JavaScript query set on Node-RED (about 30 dev, 20 holdout) and the evaluation that
-  decides unit size, BM25 and the path header.
+- Using the labelled queries to decide unit size, BM25 and the path header. The 20 holdout queries have now been
+  seen by reviewers, so they behave as a second dev set: a fresh holdout must be written before any final claim.
 - A one-page Reflex demo (query box, version selector, timings, ranked snippets with file:line).
 
 ## Measured
@@ -85,6 +96,21 @@ APPS train; the paired comparison is what matters.
 
 **Chunker** on Node-RED (467 JS files): 5,787 units, median 1,200 characters, none above 2,500, 97.8% of
 non-blank lines covered, no parse errors, no span-invariant violations, 2.9 s.
+
+**Node-RED, 50 labelled queries** (`scripts/index_repo.py` then `scripts/run_queries.py`; index of 5,787 units at commit
+`cd05a9a38b`, built in 503 s on the GPU; jina-code fp32 for documents and queries; no BM25, nothing tuned):
+
+| split | n | Recall@1 | Recall@5 | Recall@10 | MRR@10 |
+|---|---|---|---|---|---|
+| dev | 30 | 0.667 | 0.833 | 0.900 | 0.746 |
+| holdout | 20 | 0.550 | 0.950 | 1.000 | 0.705 |
+
+Holdout by category: behavioural (11) Recall@1 0.73, MRR 0.85; registration (3) MRR 0.83; setting (2) MRR 0.33;
+exact name (4) Recall@1 0.25, MRR 0.40. Dev: behavioural (17) MRR 0.71; exact (5) 0.90; setting (4) 0.46;
+registration (4) 1.00. The OpenVINO int8 query chain gives the same recalls (MRR 0.752 dev, 0.707 holdout).
+Observed weaknesses: literal and error-code queries rank the right unit low (`install_not_allowed` first hits at
+rank 7), tests (`*_spec.js`, `test/`) and one-line fragment units appear among the top matches, and a function split
+into several units shows several units with the same name and no header.
 
 **AppsRetrieval, test split, official format** (`scripts/run_mteb.py`, PyTorch fp32, GPU):
 

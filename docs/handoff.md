@@ -7,9 +7,13 @@ what is still only planned. Written 2026-10-04.
 
 - Branch `feat/v1` (local; nothing has been pushed). It starts from `main`'s initial scaffold.
 - Built: tree-sitter chunker (Python and JavaScript), embedding backends with OpenVINO int8 and automatic
-  failure recovery, the MTEB `PrePostPipelineEncoder`, and the official-format AppsRetrieval run script.
-- Not built: the FAISS index, per-commit manifests and version search, BM25, the labelled query set, the
-  Reflex demo. These are listed under "Planned" in `architecture.md`.
+  failure recovery, the MTEB `PrePostPipelineEncoder`, the official-format AppsRetrieval run script, the FAISS
+  repository index (latest commit only) with an exact-text vector cache, 50 labelled Node-RED queries and a
+  query runner that logs top-k matches to JSON.
+- Not built: per-commit manifests and version search, BM25, the Reflex demo. See "Planned" in `architecture.md`.
+- Node-RED, no tuning: holdout Recall@5 0.95, Recall@10 1.0, MRR@10 0.705; dev Recall@10 0.90, MRR@10 0.746.
+  Behavioural questions work (holdout MRR 0.85); literal and error-code questions are the weak spot.
+  Per-query results: `outputs/node-red-results.json` and the readable `outputs/node-red-digest.md` (git-ignored).
 - AppsRetrieval test split, official format, PyTorch fp32 (details in `architecture.md`):
 
   NDCG@10 **83.83**, MRR@10 **80.79**, Recall@1 73.81, Recall@10 93.23,
@@ -20,8 +24,10 @@ what is still only planned. Written 2026-10-04.
 
 ```bash
 uv sync --group dev                       # torch comes from the cu128 index (see pyproject.toml)
-uv run pytest                             # 40 tests, no downloads or GPU
+uv run pytest                             # 45 tests, no downloads or GPU
 uv run python scripts/run_mteb.py         # official-format AppsRetrieval run -> outputs/appsretrieval_results.json
+uv run python scripts/index_repo.py <repo> --out outputs/index/<name>   # FAISS index of the checkout (about 8 min on the GPU)
+uv run python scripts/run_queries.py --index outputs/index/<name> --queries eval/node-red/queries.json --out outputs/<name>-results.json
 uv run python scripts/export_openvino.py  # optional: OpenVINO int8 (about 40 s, about 4 GB RAM)
 uv run python scripts/bench_encoder.py --repo <repo>   # backend speed and agreement on real code units
 uv run python scripts/failure_drill.py    # proves the encoder recovers from broken models
@@ -86,10 +92,10 @@ Developed on an i5-12500H (4 performance cores, AVX2 and AVX-VNNI, no AVX-512/AM
 
 ## Suggested next steps
 
-1. Write the hand-labelled JavaScript query set on Node-RED (about 30 dev, 20 holdout, file:line answers)
-   before looking at any result. Nothing about chunk size, BM25 or the header can be claimed without it.
-2. Build the FAISS flat index with the exact-text vector cache key, and per-commit manifests with
-   "as of commit X" (flat index rebuilt from the manifest) and lineage grouping across versions.
-3. Run the cheap tests the reviewers proposed: dense only against gated BM25 fusion, with and without the
-   path header, and how many gold units exceed 512 tokens.
+1. Use the labelled queries to decide the open retrieval questions (dense only against gated BM25 fusion,
+   with and without the path header, unit size and fragment folding, test files). The 20 holdout queries have been
+   seen by reviewers: write a fresh holdout before claiming a final number.
+2. Per-commit manifests with "as of commit X" (flat index rebuilt from the manifest) and lineage grouping
+   across versions.
+3. Check how many gold units exceed 512 tokens and whether repeating the function header on split pieces helps.
 4. Reflex page, then update `README.md` and `AGENTS.md` to match the code.
