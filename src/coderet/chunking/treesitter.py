@@ -54,7 +54,7 @@ EXTENSIONS = {
 # intentional (Node-RED keeps its real source in packages/node_modules/@node-red/).
 SKIP_DIRS = {
     ".git", "dist", "build", "vendor", ".venv", "venv", "__pycache__", "coverage", ".next",
-    ".cache", "bower_components", ".tox", "site-packages",
+    ".cache", "bower_components", ".tox", "site-packages", "generated", "__generated__",
 }
 SKIP_DIRS_UNTRACKED = SKIP_DIRS | {"node_modules"}
 
