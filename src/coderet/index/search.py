@@ -41,8 +41,9 @@ class Searcher:
         self.non_test_ids = np.flatnonzero(~self.is_test).astype("int64")
         self.bm25 = BM25([f"{u.path}\n{u.qualname}\n{u.text}" for u in index.units]) if lexical else None
 
-    def _allowed(self, query: str) -> np.ndarray | None:
-        exclude = self.tests == "exclude" or (self.tests == "auto" and not wants_tests(query))
+    def _allowed(self, query: str, tests: str | None = None) -> np.ndarray | None:
+        mode = tests or self.tests
+        exclude = mode == "exclude" or (mode == "auto" and not wants_tests(query))
         return self.non_test_ids if exclude and self.is_test.any() else None
 
     def _dense(self, qv: np.ndarray, n: int, allowed: np.ndarray | None) -> tuple[np.ndarray, np.ndarray]:
@@ -56,8 +57,11 @@ class Searcher:
         keep = ids[0] >= 0
         return scores[0][keep], ids[0][keep]
 
-    def search(self, query_vector: np.ndarray, query: str, k: int = 10) -> list[Hit]:
-        allowed = self._allowed(query)
+    def search(self, query_vector: np.ndarray, query: str, k: int = 10, tests: str | None = None) -> list[Hit]:
+        """Top-k units. ``tests`` overrides the scope chosen at construction for this call only."""
+        if tests is not None and tests not in {"auto", "include", "exclude"}:
+            raise ValueError(f"tests must be auto, include or exclude, got {tests!r}")
+        allowed = self._allowed(query, tests)
         fuse = self.bm25 is not None and self.bm25.has_anchor(query)
         d_scores, d_ids = self._dense(np.asarray(query_vector).reshape(-1), max(k, self.pool) if fuse else k, allowed)
         units = self.index.units
