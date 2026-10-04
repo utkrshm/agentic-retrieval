@@ -161,9 +161,36 @@ treat gaps under about 0.05 as noise.
 - **Conclusion:** test scope is the bigger win on a repo with many tests; the lexical lane is a small positive
   here, not the +0.09 seen on Node-RED. The gate can misfire on prose that contains a dotted name.
 
-### E12. Gemma against jina on the repository pipeline
+### E12. embeddinggemma-300m against jina-code on the repository pipeline
 
-- *Pending: filled in when the Gemma indexes finish (see the end of this file).*
+- **Setup:** the same chunker, queries, test scope and gated lexical lane; only the embedding model changes.
+  Gemma runs on plain PyTorch fp32 with its own prompts (`task: code retrieval | query: `, `title: none | text: `),
+  768 dimensions, 2,048-token limit; indexes built on the GPU. Node-RED index has no merge (5,787 units, same
+  as the jina run it is compared with); BrowserOS has merge-60 (11,483 units, compared with the jina merge-60
+  index).
+- **Expected:** equal or better than jina, since the two tie on AppsRetrieval (E7).
+- **Happened:**
+
+  | Repo / config | Model | Recall@1 | Recall@5 | Recall@10 | MRR@10 | gold recall@10 |
+  |---|---|---|---|---|---|---|
+  | Node-RED dense | jina | 0.66 | 0.88 | 0.94 | 0.755 | 0.887 |
+  | Node-RED dense | Gemma | 0.62 | 0.80 | 0.94 | 0.700 | 0.873 |
+  | Node-RED lane + tests | jina | 0.78 | 0.94 | 0.96 | 0.848 | 0.943 |
+  | Node-RED lane + tests | Gemma | 0.72 | 0.90 | 1.00 | 0.801 | 0.983 |
+  | BrowserOS dense | jina | 0.60 | 0.86 | 0.88 | 0.707 | 0.840 |
+  | BrowserOS dense | Gemma | 0.50 | 0.84 | 0.94 | 0.649 | 0.890 |
+  | BrowserOS lane + tests | jina | 0.62 | 0.86 | 0.96 | 0.734 | 0.930 |
+  | BrowserOS lane + tests | Gemma | 0.56 | 0.96 | 1.00 | 0.717 | 0.980 |
+
+  With the lexical lane, Gemma finds an answer in the top 10 for every query on both repos (Recall@10 1.00)
+  and has higher gold recall@10, but puts the first correct answer at rank 1 less often (Recall@1 lower by
+  0.06 on both repos) and has lower MRR@10 (0.801 against 0.848, 0.717 against 0.734). On BrowserOS Recall@5
+  is higher (0.96 against 0.86). Per query, Gemma dense was better on 9 and worse on 16 Node-RED queries, and
+  better on 9 and worse on 13 BrowserOS queries, compared with jina dense.
+- **Conclusion:** the AppsRetrieval tie does not carry over to the repositories on top-1 precision: jina orders
+  the first answer better, Gemma retrieves a slightly better candidate pool. The gaps are at the edge of what 50
+  queries resolve (a Recall@10 difference of 0.04 is two queries). Gemma is smaller (308M against 0.5B) and was
+  not timed on the CPU here.
 
 ### E13. Incidents worth remembering
 
