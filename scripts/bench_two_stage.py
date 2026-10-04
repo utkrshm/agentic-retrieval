@@ -71,13 +71,34 @@ def main() -> None:
         s = np.array([float(jina_ix.vectors[jpos[key(h.unit)]] @ jv) for h in pool])
         _ = [pool[i] for i in np.argsort(-s, kind="stable")] + hits[args.n :]
 
+    gpos = {key(u): i for i, u in enumerate(gemma_ix.units)}
+
+    def mm(x: np.ndarray) -> np.ndarray:
+        span = x.max() - x.min()
+        return (x - x.min()) / span if span > 1e-9 else np.zeros_like(x)
+
+    def fusion(q: str) -> None:
+        """Gemma top-50 (test scope, gated lane) re-scored by 0.7 jina + 0.3 Gemma, blended with BM25 when gated."""
+        gv = gemma_vec(q)
+        hits = gsearch.search(gv, q, 50)
+        jv = jina_vec(q)
+        gated = gsearch.bm25.has_anchor(q)
+        gc = np.array([float(gemma_ix.vectors[gpos[key(h.unit)]] @ gv) for h in hits])
+        jc = np.array([float(jina_ix.vectors[jpos[key(h.unit)]] @ jv) for h in hits])
+        g = 0.25 if gated else 0.0
+        lex = gsearch.bm25.scores(q) if gated else None
+        bm = np.array([float(lex[gpos[key(h.unit)]]) for h in hits]) if gated else np.zeros(len(hits))
+        s = (1 - g) * (0.7 * mm(jc) + 0.3 * mm(gc)) + g * mm(bm)
+        _ = [hits[i] for i in np.argsort(-s, kind="stable")[:10]]
+
     def gemma_only(q: str) -> None:
         gsearch.search(gemma_vec(q), q, 10)
 
     def jina_only(q: str) -> None:
         jsearch.search(jina_vec(q), q, 10)
 
-    for name, fn in (("jina alone", jina_only), ("gemma alone", gemma_only), (f"two-stage (gemma top-{args.n} then jina)", two_stage)):
+    for name, fn in (("jina alone", jina_only), ("gemma alone", gemma_only), (f"two-stage (gemma top-{args.n} then jina)", two_stage),
+                     ("fusion N=50 (the settled pipeline)", fusion)):
         t = time.perf_counter()
         fn(texts[0])
         cold = (time.perf_counter() - t) * 1000

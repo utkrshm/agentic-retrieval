@@ -2,6 +2,9 @@
 
     uv run python scripts/fusion_repo.py
 
+Needs the jina and Gemma indexes of both repositories at outputs/index/{node-red,browseros}-{jina,gemma}
+(built with scripts/index_repo.py, with and without --model embeddinggemma-300m).
+
 Candidates are Gemma's top-N from the full lane pipeline; each gets Gemma cosine, jina cosine and BM25 scores,
 min-max normalised per query, and s = (1 - g) * (beta * jina + (1 - beta) * gemma) + g * bm25 with g = gamma only
 when the query's BM25 gate fires. The grid and the protocol are pre-registered in docs/experiments.md (E12c).
@@ -20,8 +23,8 @@ from coderet.eval.repo_queries import first_hit_rank, gold_found_at, load_querie
 from coderet.index import Hit, RepoIndex, Searcher
 
 REPOS = {
-    "node-red": ("eval/node-red/queries.json", "outputs/index/node-red-ts", "outputs/index/node-red-gemma"),
-    "browseros": ("eval/browseros/queries.json", "outputs/index/browseros-m60", "outputs/index/browseros-gemma"),
+    "node-red": ("eval/node-red/queries.json", "outputs/index/node-red-jina", "outputs/index/node-red-gemma"),
+    "browseros": ("eval/browseros/queries.json", "outputs/index/browseros-jina", "outputs/index/browseros-gemma"),
 }
 BETAS, GAMMAS, NS = (0.5, 0.7, 1.0), (0.0, 0.25, 0.5), (10, 20, 50)
 key = lambda u: (u.path, u.start_line, u.end_line, u.part, u.kind)  # noqa: E731

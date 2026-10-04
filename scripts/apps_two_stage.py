@@ -13,6 +13,8 @@ Systems (all fixed before running; nothing is tuned on this split):
                                      anchor that occurs in the corpus; other queries dense only
   two-stage                          Gemma ranking, its top-10 re-ordered by jina cosine (rest keep Gemma order)
   two-stage+bm25                     the same, with the gated BM25 lane in Gemma's stage
+  concat 0.7/0.3                     a plain-encoder ensemble: 0.7 * jina cosine + 0.3 * Gemma cosine over the whole corpus
+                                     (equals the dot product of weighted concatenated vectors; fits the official format)
   fusion N=10 / N=50                 Gemma's top-N (with the lane) re-scored by a min-max blend of jina cosine, Gemma
                                      cosine and BM25 (beta 0.7, gamma 0.25, the setting both repo directions chose in
                                      E12c; fixed from the repositories, not tuned on this split)
@@ -136,6 +138,10 @@ def main() -> None:
     systems["two-stage+bm25"] = lambda qi: two_stage(qi, True)
     for n in (10, 50):
         systems[f"fusion N={n}"] = lambda qi, n=n: fusion(qi, n)
+    # a plain-encoder ensemble: the dot product of [0.7 * jina ; 0.3 * gemma] vectors is 0.7 * jina cos + 0.3 * gemma cos
+    # over the whole corpus, so it fits the official PrePostPipelineEncoder format (no BM25, no re-scoring stage)
+    concat_s = 0.7 * jina_s + 0.3 * gem_s
+    systems["concat 0.7/0.3 (plain encoder)"] = lambda qi: np.argsort(-concat_s[qi], kind="stable")
 
     results, all_ranks = {}, {}
     for name, fn in systems.items():
