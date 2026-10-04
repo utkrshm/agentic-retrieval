@@ -19,7 +19,7 @@ from pathlib import Path
 
 import numpy as np
 
-from coderet.config import JINA_CODE
+from coderet.config import MODELS, ModelSpec
 from coderet.embed.backends import TorchBackend
 from coderet.eval.repo_queries import first_hit_rank, gold_found_at, load_queries, summarise
 from coderet.index import RepoIndex, Searcher
@@ -32,12 +32,13 @@ CONFIGS = {
 }
 
 
-def query_vectors(texts: list[str]) -> np.ndarray:
-    key = hashlib.sha256(("\n".join(texts) + JINA_CODE.revision + JINA_CODE.query_prompt).encode()).hexdigest()[:16]
+def query_vectors(texts: list[str], spec: ModelSpec | None = None) -> np.ndarray:
+    spec = spec or MODELS["jina-code-0.5b"]
+    key = hashlib.sha256(("\n".join(texts) + spec.hf_id + spec.revision + spec.query_prompt).encode()).hexdigest()[:16]
     path = Path(".cache/queryvecs") / f"{key}.npy"
     if path.exists():
         return np.load(path)
-    vecs = TorchBackend(JINA_CODE, "cpu").embed(texts, "query")
+    vecs = TorchBackend(spec, "cpu").embed(texts, "query")
     path.parent.mkdir(parents=True, exist_ok=True)
     np.save(path, vecs)
     return vecs
@@ -66,13 +67,18 @@ def main() -> None:
 
     doc = load_queries(args.queries)
     queries = doc["queries"]
-    qv = query_vectors([q["query"] for q in queries])
+    texts = [q["query"] for q in queries]
+    qvs: dict[str, np.ndarray] = {}
     out: dict = {}
     base: list[int | None] | None = None
     print(f"{'index / config':34s} {'split':8s} {'n':>3s} {'R@1':>6s} {'R@5':>6s} {'R@10':>6s} {'MRR@10':>7s} {'goldR@10':>8s}")
     for spec in args.index:
         name, _, directory = spec.partition("=")
         index = RepoIndex.load(Path(directory))
+        spec = next(m for m in MODELS.values() if m.hf_id == index.meta["model"])
+        if spec.key not in qvs:
+            qvs[spec.key] = query_vectors(texts, spec)
+        qv = qvs[spec.key]
         for cname in args.configs:
             metrics, ranks = evaluate(index, CONFIGS[cname], queries, qv)
             out[f"{name}/{cname}"] = {"metrics": metrics, "ranks": dict(zip((q["id"] for q in queries), ranks, strict=True)),
