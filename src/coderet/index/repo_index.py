@@ -56,15 +56,20 @@ class RepoIndex:
     @classmethod
     def build(cls, repo: Path, encoder: DocumentEncoder, spec: ModelSpec = JINA_CODE,
               max_chars: int = MAX_CHARS, cache: VectorCache | None = None, batch: int = 64,
-              log=print, min_chars: int = 0, signature_header: bool = False) -> RepoIndex:
+              log=print, min_chars: int = 0, signature_header: bool = False,
+              units: list[Unit] | None = None) -> RepoIndex:
+        """Chunk (unless ``units`` is given, e.g. shared between two models) and embed a checkout."""
         t0 = time.perf_counter()
         repo = repo.resolve()
-        units: list[Unit] = []
         n_files = 0
-        for path in iter_source_files(repo):
-            file_units, _ = chunk_file(path, repo, max_chars, min_chars)
-            units.extend(file_units)
-            n_files += bool(file_units)
+        if units is None:
+            units = []
+            for path in iter_source_files(repo):
+                file_units, _ = chunk_file(path, repo, max_chars, min_chars)
+                units.extend(file_units)
+                n_files += bool(file_units)
+        else:
+            n_files = len({u.path for u in units})
         texts = [embed_text(u, signature_header) for u in units]
         keys = [vector_key(spec, "document", t) for t in texts]
         have = {k: cache.get(k) for k in set(keys)} if cache is not None else {}

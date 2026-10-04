@@ -112,3 +112,4 @@ def test_searcher_per_call_override_matches_constructor_scope(parts):
     a = Searcher(gi, lexical=False, tests="include").search(qv, "install module", 5)
     b = Searcher(gi, lexical=False, tests="exclude").search(qv, "install module", 5, tests="include")
     assert [(h.unit.path, h.unit.start_line) for h in a] == [(h.unit.path, h.unit.start_line) for h in b]
+
