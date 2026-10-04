@@ -16,6 +16,7 @@ dependencies = [
     "tree-sitter-python",
     "tree-sitter-javascript",
     "tree-sitter-typescript>=0.23.2",
+    "reflex>=0.9.12",
 ]
 
 [dependency-groups]
