@@ -44,6 +44,12 @@
      "start": 155,
      "end": 165,
      "qualname": "Memory.prototype.clean"
+    },
+    {
+     "path": "packages/node_modules/@node-red/runtime/lib/nodes/context/index.js",
+     "start": 585,
+     "end": 619,
+     "qualname": "clean"
     }
    ]
   },
@@ -558,6 +564,12 @@
      "start": 403,
      "end": 433,
      "qualname": "getObjectProperty"
+    },
+    {
+     "path": "packages/node_modules/@node-red/util/lib/util.js",
+     "start": 384,
+     "end": 401,
+     "qualname": "getMessageProperty"
     }
    ]
   },
@@ -795,5 +807,8 @@
     }
    ]
   }
+ ],
+ "label_fixes": [
+  "2026-10-04 (after results were seen): added a second valid answer to h05 (getMessageProperty, which strips 'msg.' and reads the property from the message) and to d03 (the context manager's clean(), which deletes contexts of nodes no longer in the flows). Found by reading the top-ranked wrong answers; both are legitimate matches for the query wording."
  ]
 }
