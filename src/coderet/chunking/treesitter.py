@@ -506,13 +506,7 @@ def iter_source_files(root: Path, extensions: set[str] | None = None) -> Iterato
                 yield p
 
 
-def embed_text(u: Unit, signature_header: bool = False) -> str:
-    """Text that gets embedded for a unit: where it is, what it is, then the code.
-
-    With ``signature_header`` a statement group cut out of a larger definition also carries that
-    definition's signature, which is otherwise only visible in the first piece.
-    """
+def embed_text(u: Unit) -> str:
+    """Text that gets embedded for a unit: where it is, what it is, then the code."""
     head = f"{u.path}\n{u.kind} {u.qualname}".strip()
-    if signature_header and u.group and u.signature:
-        head += f"\n{u.signature}"
     return f"{head}\n{u.text}"

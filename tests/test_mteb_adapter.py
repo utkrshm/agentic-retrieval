@@ -76,7 +76,7 @@ def test_l2_normalize_handles_zero_vectors():
 def test_fingerprint_changes_with_every_setting_and_is_stable():
     a = fingerprint(JINA_CODE, backend="torch", precision="fp32")
     assert a == fingerprint(JINA_CODE, backend="torch", precision="fp32")
-    assert a != fingerprint(JINA_CODE, backend="openvino", precision="fp32")
+    assert a != fingerprint(JINA_CODE, backend="cpu", precision="fp32")
     assert a != fingerprint(JINA_CODE, backend="torch", precision="bf16")
     from dataclasses import replace
     assert a != fingerprint(replace(JINA_CODE, query_prompt="x"), backend="torch", precision="fp32")

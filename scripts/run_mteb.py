@@ -2,7 +2,6 @@
 
     uv run python scripts/run_mteb.py                      # PyTorch fp32 on the GPU if there is one
     uv run python scripts/run_mteb.py --device cpu         # PyTorch fp32 on the CPU (slow: hours)
-    uv run python scripts/run_mteb.py --query-backend auto # int8 OpenVINO queries on CPU, fp32 documents
 
 Documents are always encoded in fp32. The AppsRetrieval TEST split is used by this script: run it
 only for a frozen configuration, never to tune anything. Output goes to outputs/ (git-ignored).
@@ -18,29 +17,15 @@ import mteb
 import numpy as np
 
 from coderet.config import MODELS, JINA_CODE, fingerprint, get_model
-from coderet.embed import make_query_encoder
 from coderet.embed.backends import TorchBackend
 from coderet.mteb_adapters import PrePostPipelineEncoder
 
 
-class SplitEmbedder:
-    """Queries and documents may use different (but each fp32-faithful) backends."""
-
-    def __init__(self, query_embedder, document_embedder) -> None:
-        self.query_embedder, self.document_embedder = query_embedder, document_embedder
-
-    def embed(self, texts: list[str], role: str) -> np.ndarray:
-        return (self.query_embedder if role == "query" else self.document_embedder).embed(texts, role)
-
-
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--model", default=JINA_CODE.key, choices=sorted(MODELS),
-                    help="comparison models run with PyTorch fp32 only (--query-backend torch)")
+    ap.add_argument("--model", default=JINA_CODE.key, choices=sorted(MODELS))
     ap.add_argument("--out", type=Path, default=Path("outputs/appsretrieval_results.json"))
     ap.add_argument("--device", default="auto", choices=["auto", "cuda", "cpu"])
-    ap.add_argument("--query-backend", default="torch", choices=["torch", "auto"],
-                    help="torch: PyTorch fp32 for queries too; auto: OpenVINO int8 -> fp32 -> PyTorch chain")
     ap.add_argument("--batch-size", type=int, default=64, help="MTEB batch size (encoder re-batches internally)")
     ap.add_argument("--torch-batch", type=int, default=8, help="PyTorch micro-batch (memory bound on small GPUs)")
     args = ap.parse_args()
@@ -48,14 +33,9 @@ def main() -> None:
     import torch
 
     spec = get_model(args.model)
-    if spec is not JINA_CODE and args.query_backend != "torch":
-        raise SystemExit("the OpenVINO chain is exported for jina-code only; use --query-backend torch")
     device = "cuda" if args.device in ("auto", "cuda") and torch.cuda.is_available() else "cpu"
     doc_backend = TorchBackend(spec, device, batch_size=args.torch_batch)
-    if args.query_backend == "torch":
-        embedder, qname = doc_backend, doc_backend.name
-    else:
-        embedder, qname = SplitEmbedder(make_query_encoder(JINA_CODE), doc_backend), "chain"
+    embedder, qname = doc_backend, doc_backend.name
     rev = fingerprint(spec, doc=doc_backend.name, queries=qname, precision="fp32 docs")
     encoder = PrePostPipelineEncoder(embedder, spec.key, revision=rev)
 

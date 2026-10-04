@@ -1,7 +1,7 @@
 """CPU-only warm batch-1 latency of the two-stage pipeline (Gemma retrieves, jina re-scores the top-N).
 
     CUDA_VISIBLE_DEVICES="" uv run python scripts/bench_two_stage.py --queries eval/browseros/queries.json \
-        --jina outputs/index/browseros-m60 --gemma outputs/index/browseros-gemma [--threads 4] [--jina-int8]
+        --jina outputs/index/browseros-m60 --gemma outputs/index/browseros-gemma [--threads 4]
 
 Per query, end to end: Gemma query encode, Gemma search (test scope plus gated lexical lane), jina query encode,
 re-score the top-N by jina cosine from the stored document vectors, sort. Percentiles are measured on the whole
@@ -19,7 +19,6 @@ import numpy as np
 import torch
 
 from coderet.config import EMBEDDINGGEMMA, JINA_CODE
-from coderet.embed import make_query_encoder
 from coderet.embed.backends import TorchBackend
 from coderet.eval.repo_queries import load_queries
 from coderet.index import RepoIndex, Searcher
@@ -37,7 +36,6 @@ def main() -> None:
     ap.add_argument("--gemma", type=Path, required=True)
     ap.add_argument("--n", type=int, default=5)
     ap.add_argument("--threads", type=int, default=0, help="torch threads (0: library default)")
-    ap.add_argument("--jina-int8", action="store_true", help="jina query encoder: OpenVINO int8 chain instead of fp32")
     args = ap.parse_args()
     assert not torch.cuda.is_available(), "run with CUDA_VISIBLE_DEVICES='' so the GPU is not used"
     if args.threads:
@@ -52,13 +50,12 @@ def main() -> None:
 
     t0 = time.perf_counter()
     gemma = TorchBackend(EMBEDDINGGEMMA, "cpu", batch_size=1)
-    jina = make_query_encoder(JINA_CODE) if args.jina_int8 else TorchBackend(JINA_CODE, "cpu", batch_size=1)
-    jname = "int8 OpenVINO chain" if args.jina_int8 else "fp32 PyTorch"
-    print(f"threads {torch.get_num_threads()} | jina query encoder: {jname} | load {time.perf_counter() - t0:.1f}s "
+    jina = TorchBackend(JINA_CODE, "cpu", batch_size=1)
+    print(f"threads {torch.get_num_threads()} | fp32 PyTorch | load {time.perf_counter() - t0:.1f}s "
           f"(startup, not query latency) | {len(texts)} queries, N={args.n}")
 
     def jina_vec(q: str) -> np.ndarray:
-        return np.asarray(jina.embed_queries([q]) if args.jina_int8 else jina.embed([q], "query"))[0]
+        return np.asarray(jina.embed([q], "query"))[0]
 
     def gemma_vec(q: str) -> np.ndarray:
         return gemma.embed([q], "query")[0]

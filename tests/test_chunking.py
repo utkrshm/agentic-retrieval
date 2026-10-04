@@ -291,7 +291,7 @@ def test_invariants_hold_at_any_size_limit(max_chars: int):
         _check_invariants(src, chunk_source(name, src, max_chars=max_chars))
 
 
-# ---- TypeScript, tiny-fragment merge and signature header ------------------------------------
+# ---- TypeScript and tiny-fragment merge ---------------------------------------------------
 
 TS_SRC = """\
 import { x } from "./x";
@@ -341,19 +341,6 @@ def test_merge_respects_max_chars_and_is_off_by_default():
     capped = chunk_source("m.js", MERGE_SRC, max_chars=30, min_chars=20)
     assert all(len(u.text) <= 30 or u.start_line == u.end_line for u in capped)
 
-
-def test_signature_header_only_for_statement_groups_of_split_definitions():
-    from coderet.chunking import embed_text
-
-    body = "\n".join(f"  var v{i} = compute({i});" for i in range(40))
-    src = f"function big(alpha, beta) {{\n{body}\n}}\n"
-    units = chunk_source("big.js", src, max_chars=300)
-    groups = [u for u in units if u.group]
-    assert len(groups) > 1
-    assert "function big(alpha, beta)" in embed_text(groups[-1], signature_header=True)
-    assert "function big(alpha, beta)" not in embed_text(groups[-1])
-    whole = chunk_source("w.js", "function w(a) { return a; }\n")[0]
-    assert embed_text(whole, signature_header=True) == embed_text(whole)
 
 
 def test_declaration_files_are_not_indexed(tmp_path):

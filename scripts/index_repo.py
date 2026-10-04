@@ -14,7 +14,6 @@ from pathlib import Path
 
 from coderet.chunking import MAX_CHARS
 from coderet.config import JINA_CODE, MODELS, fingerprint, get_model
-from coderet.embed import make_document_encoder
 from coderet.embed.backends import TorchBackend
 from coderet.index import RepoIndex, VectorCache
 
@@ -29,8 +28,6 @@ def main() -> None:
     ap.add_argument("--max-chars", type=int, default=MAX_CHARS)
     ap.add_argument("--min-chars", type=int, default=60,
                     help="fold statement groups under this many non-blank characters into a neighbour (0: off; 60 was neutral to slightly positive on two repos)")
-    ap.add_argument("--signature-header", action="store_true",
-                    help="add the enclosing signature to statement groups cut from a large definition")
     ap.add_argument("--batch", type=int, default=64)
     ap.add_argument("--no-cache", action="store_true")
     args = ap.parse_args()
@@ -39,20 +36,16 @@ def main() -> None:
 
     device = "cuda" if args.device in ("auto", "cuda") and torch.cuda.is_available() else "cpu"
     spec = get_model(args.model)
-    if spec is JINA_CODE:
-        encoder = make_document_encoder(spec, device)
-    else:
-        encoder = TorchBackend(spec, device, batch_size=8)
-        encoder.active_name = encoder.name
+    encoder = TorchBackend(spec, device, batch_size=8)
     cache = None if args.no_cache else VectorCache(
         Path(".cache/vectors") / fingerprint(spec, kind="document", precision="fp32"))
     index = RepoIndex.build(args.repo, encoder, spec, args.max_chars, cache, args.batch,
-                            min_chars=args.min_chars, signature_header=args.signature_header)
+                            min_chars=args.min_chars)
     index.save(args.out)
     m = index.meta
     print(f"\nindexed {m['repo']} @ {m['commit'][:10]}: {m['n_units']} units from {m['n_files']} files, "
           f"{m['dim']}-d, {m['embedded_now']} embedded now, {m['from_cache']} from cache, "
-          f"{m['build_seconds']}s, backend {encoder.active_name}")
+          f"{m['build_seconds']}s, backend {encoder.name}")
     print(f"saved to {args.out}")
 
 

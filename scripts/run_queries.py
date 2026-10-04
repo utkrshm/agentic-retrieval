@@ -18,7 +18,6 @@ from pathlib import Path
 import numpy as np
 
 from coderet.config import JINA_CODE
-from coderet.embed import make_query_encoder
 from coderet.embed.backends import TorchBackend
 from coderet.eval.repo_queries import first_hit_rank, gold_found_at, is_hit, load_queries, summarise
 from coderet.index import RepoIndex
@@ -34,8 +33,6 @@ def main() -> None:
     ap.add_argument("--queries", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--split", default="all", choices=["all", "dev", "holdout"])
-    ap.add_argument("--query-backend", default="torch", choices=["torch", "auto"],
-                    help="torch: PyTorch fp32 on CPU; auto: OpenVINO int8 -> fp32 -> PyTorch chain")
     ap.add_argument("-k", type=int, default=5, help="matches to log per query (metrics always use the top 10)")
     args = ap.parse_args()
 
@@ -44,8 +41,8 @@ def main() -> None:
     if doc["commit"] != index.meta["commit"]:
         print(f"WARNING: queries were labelled at {doc['commit'][:10]} but the index is {index.meta['commit'][:10]}")
     queries = [q for q in doc["queries"] if args.split in ("all", q["split"])]
-    encoder = TorchBackend(JINA_CODE, "cpu") if args.query_backend == "torch" else make_query_encoder(JINA_CODE)
-    name = getattr(encoder, "name", None) or "chain"
+    encoder = TorchBackend(JINA_CODE, "cpu")
+    name = encoder.name
 
     encoder.embed([queries[0]["query"]], "query")  # warm up
     results, rows = [], {"dev": [], "holdout": []}

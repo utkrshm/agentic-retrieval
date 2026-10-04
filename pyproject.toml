@@ -11,7 +11,6 @@ dependencies = [
     "torch>=2.7",
     "torchvision",
     "sentence-transformers>=5.1",
-    "optimum-intel[openvino,nncf]",
     # 0.26.0 corrupts node positions and segfaults on real JS files (Node-RED); 0.25.2 is fine.
     "tree-sitter>=0.25,<0.26",
     "tree-sitter-python",

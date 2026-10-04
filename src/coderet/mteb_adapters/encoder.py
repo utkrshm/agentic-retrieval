@@ -6,7 +6,7 @@ Every encode call runs three stages, each swappable without touching the MTEB gl
 
 `role` is "query" or "document", derived from MTEB's `PromptType`, so query-side and
 document-side processing (prompts, views, normalisation) stay asymmetric. The embedder is any
-object with ``embed(texts, role) -> (n, dim) array`` (a backend or a ResilientEncoder).
+object with ``embed(texts, role) -> (n, dim) array`` (a backend).
 
 The encoder only ever sees what MTEB passes in (ids are not exposed, titles are empty); it must
 never reload the raw dataset, whose metadata contains the answer.
